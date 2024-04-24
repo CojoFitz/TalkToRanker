@@ -13,6 +13,7 @@ from ContextObject import ContextObject
 from Response import Response
 df = pd.read_csv('testCsv.csv')
 chatContext = ContextObject()
+chatContext.visType = 0
 chatContext.newId = df['id'].to_list()
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 custom_scrollbar_css = {
@@ -43,8 +44,8 @@ app.layout = html.Div([
         ], style={"display": "flex", "align-items": "center", "justify-content": "center"}),
         dcc.Store(id='chat-history', data=[]),
     ], className="p-5", style={"width": "40%", "margin-right": "auto", "margin-left": "0"}),
-    dcc.Graph(id="scatter-plot", style={"width": "900px", "height": "900px"}, figure = blank_fig()),
-    html.Div(id="selected-points-output"),
+    dcc.Graph(id="plot", style={"width": "900px", "height": "900px"}, figure = blank_fig()),
+    html.Div(id='dummy-output', style={'display': 'none'})  # Dummy output component to trick callback function lol
 
 
 ], className="d-flex justify-content-start")
@@ -63,11 +64,10 @@ def processQuery(userInput, contextObj):
     patternOne = r'Filter by (\d+)\s*<\s*([_A-Za-z]+)\s*<\s*(\d+)'
     patternTwo = r"What is the correlation of the target with (\w+)"
     patternThree = r"Show me the data"
-    #30<feature<500
 
     match = re.match(patternOne, userInput)
     if match:
-        taskType = 3 #This task is for filtering
+        taskType = contextObj.visType
         num1 = match.group(1)
         feature1 = match.group(2)
         num2 = match.group(3)
@@ -78,16 +78,12 @@ def processQuery(userInput, contextObj):
 
     match = re.match(patternTwo, userInput)
     if match:
-        taskType = 2 #This task is for correlation between featue & y (need to adjust)
-
+        taskType = 2 
       #Example: "What is the correlation of the target with GRE_Score_v"
       #"What is the correlation of the target with TOEFL_Score_v"
         feature1 = match.group(1)
         cor = df[feature1].corr(df[target])
         textResponse = "The correlation between the target and " + feature1 + ' is ' + str(cor)+'.'
-  #This is the format ID will always be in. Since we will have the context of
-  #the task type. The none values should not matter, as we can simply ignore
-  #the un-needed indexes
     match = re.match(patternThree, userInput)
     if match:
         taskType = 3
@@ -147,45 +143,67 @@ def update_chat(n_clicks, user_input, chat_history):
         
     return chat_output, user_input, chat_history
 
-
 @app.callback(
-    Output("selected-points-output", "children"),
-    [Input("scatter-plot", "selectedData")]
+    Output("dummy-output", "children"),  # Dummy output
+    [Input("plot", "selectedData")]
 )
 def display_selected_data(selected_data):#This is for debugging purposes only, 
     if selected_data:
         points = selected_data["points"]
         pointDf = pd.json_normalize(points)
-        print(pointDf['customdata'].tolist())
-        return html.Ul([html.Li(f"X: {point['customdata']}") for point in points])
+        idList = pointDf['customdata'].tolist()
+        flatIdList = [item for sublist in idList for item in sublist]
+        chatContext.newId = flatIdList
+
+        return flatIdList
     else:
         return "No points selected."
 
 
 @app.callback(
-    Output('scatter-plot', 'figure'),
-    [Input('chat-history', 'data')]
+    Output('plot', 'figure'),
+    [Input('chat-history', 'data'),
+     Input("dummy-output", "children")],
 )
 
-def update_chart(chat_history):
+
+def update_chart(chat_history,flatIdList):
     if(len(chatContext.responses) > 0):
         filtered_df = df[df['id'].isin(chatContext.newId)]
+        unfilt_df = pd.melt(df, id_vars=['y','id'], var_name='feature', value_name='value')
         df_melted = pd.melt(filtered_df, id_vars=['y','id'], var_name='feature', value_name='value')
+        duplicate_indices = unfilt_df[unfilt_df['id'].isin(df_melted['id'])].index
+        df_melted['Selection'] = 'selected'
+        unfilt_df['Selection'] = 'unselected'
+        print(unfilt_df)
+        print(chatContext.newId)
+        result = pd.concat([df_melted,unfilt_df])
         if(chatContext.visType == 2):
-            fig = px.scatter(df_melted, x="value", y="y",  facet_col="feature", facet_col_wrap=2,custom_data=['id'], hover_data={'id': True},  trendline="ols", category_orders={ 
-                "feature": ['GRE_Score_v', 'SOP_v', 'TOEFL_Score_v', 'University_Rating_v']})
-            fig.update_traces(customdata=df_melted['id'].astype(int))
+            unfilt_df.loc[unfilt_df['id'].isin(chatContext.newId), 'Selection'] = 'selected'
+            print(unfilt_df)
+            fig = px.scatter(unfilt_df, x="value", facet_col_spacing=0.04, y="y", facet_col="feature",color='Selection', color_discrete_sequence=['#2c456b','rgba(131, 175, 240, 0.2)'], facet_col_wrap=2,custom_data=['id'], hover_data={'id': True},  category_orders={ 
+                "feature": ['GRE_Score_v', 'SOP_v', 'TOEFL_Score_v', 'University_Rating_v'], "Selection": ["selected","unselected"]})
+            trendFig = px.scatter(df_melted, x="value", facet_col_spacing=0.04, y="y", facet_col="feature",  facet_col_wrap=2, trendline="ols", category_orders={ 
+                "feature": ['GRE_Score_v', 'SOP_v', 'TOEFL_Score_v', 'University_Rating_v']})  
+            trendFig.update_traces(visible=False, selector=dict(mode="markers"))
+            fig.add_traces(trendFig.data)
+            fig.update_traces(selected=dict(marker=dict(color='#2c456b')), unselected=dict(marker=dict(color='rgba(131, 175, 240, 0.2)')))
+
+          
+
+            #print(fig.data)
+            
         elif(chatContext.visType == 3):
-            unfilt_df = pd.melt(df, id_vars=['y','id'], var_name='feature', value_name='value')
-            df_melted['Source'] = 'filtered'
-            unfilt_df['Source'] = 'unfiltered'
-            result = pd.concat([df_melted,unfilt_df])
-            fig = px.histogram(result, x="value",facet_col="feature", color="Source", facet_col_wrap=2, nbins=400, barmode="overlay", category_orders={ 
+            fig = px.histogram(result, x="value",facet_col="feature", facet_col_spacing=0.04, color="Selection", facet_col_wrap=2, nbins=400, barmode="overlay", category_orders={ 
                 "feature": ['GRE_Score_v', 'SOP_v', 'TOEFL_Score_v', 'University_Rating_v']}, color_discrete_sequence=['#00308F', '#00308F'])
             fig.update_layout(bargap=0.01)
             fig.update_layout(showlegend=False)
         fig.update_xaxes(range=[0, None])
         fig.update_yaxes(range=[0, None])
+        fig.update_yaxes(showticklabels=True, row=1)
+        fig.update_yaxes(showticklabels=True, row=2)
+        fig.update_xaxes(showticklabels=True, row=1)
+        fig.update_xaxes(showticklabels=True, row=2)
         fig.update_yaxes(matches=None)
         fig.update_xaxes(matches=None)
 
