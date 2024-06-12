@@ -12,5 +12,5 @@ class Response:
             "old": self.old,
             "new": self.new,
             "visType": self.visType,
-            "oldParse": self.oldParse
+            "oldParse": self.oldParse,
         }

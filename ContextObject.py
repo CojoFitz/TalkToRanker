@@ -4,6 +4,10 @@ class ContextObject:
         self.responses = []
         self.parsedInfo = []
         self.visType = []
+        self.trackedVis = False
+        self.trackedName = ''
+        self.subsetId = []
+        self.isSubset = False
 
     def to_dict(self):
         return {
