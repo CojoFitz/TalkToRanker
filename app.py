@@ -13,6 +13,7 @@ from raceplotly.plots import barplot
 from ContextObject import ContextObject
 from Response import Response
 import warnings
+from matchResponse import matchResponse
 
 warnings.filterwarnings( #for some reason I get weird warnings with this version of pandas & plotly, but the new version breaks my graph 
     action="ignore",
@@ -22,9 +23,10 @@ warnings.filterwarnings( #for some reason I get weird warnings with this version
 )
 adm = 'admission_all.csv'
 credit = 'credit_risk_all.csv'
-df = pd.read_csv(adm)
+df = pd.read_csv(credit)
 target = 'y'
 chatContext = ContextObject()
+formatQuery = matchResponse()
 chatContext.visType = 0
 defaultIds = df['id'].to_list()
 chatContext.subsetId = defaultIds
@@ -134,51 +136,86 @@ def genResponse(taskType, df, feature1):
     return genResp
 
 
+
+def queryParser(query):
+    p1 = r'(Filter|Subset) by (\d+)\s*<\s*([_A-Za-z]+)\s*<\s*(\d+)' #Numerical
+    p2 = r"What is the correlation of the target with (\w+)"
+    p3 = r"Show me the data"
+    p4 =  r"Show me the stability"
+    p5 =  r"What are the most important features"
+    p6 = r"Track the previous response as (\w+)"
+    p7 = r"Show me tracked response (\w+)"
+    p8 = r"(Filter|Subset) the data when feature (\w+) is (\w+)" #categorical
+    patterns = [p1,p2,p3,p4,p5,p6,p7,p8]
+    matchData = [-9, None, None, None, None, query, False] #[Task, Capture1, Capture2, Capture3, Capture4, query, gptParse]
+    for p in range(0, len(patterns)):
+        match = re.match(patterns[p], query)
+        if match:
+            matchData[0] = p+1
+            for i in range(1,len(match.groups())+1):
+                matchData[i] = match.group(i)
+            return matchData
+    gptParse = formatQuery.match_text(query)
+    print(gptParse)
+    gptParse.replace('\"', '') #Sometimes it'll add quotation marks to the parse. I am just going to remove them to make things easier
+    matchData[5] = gptParse
+    matchData[6] = True
+
+    for p in range(0, len(patterns)):
+        match = re.match(patterns[p], gptParse)
+        if match:
+            matchData[0] = p+1
+            for i in range(1,len(match.groups())+1):
+                matchData[i] = match.group(i)
+            return matchData
+    return[-9, None, None, None, None, query, False] #If no match can be made, we will return an error
+
+    
+
+
+
+
+    
+
 def processQuery(userInput, contextObj):
     isTrackedVis = False
     trackedName = ''
     taskType = 0 #Zero will be our error state
-    textResponse = ['Query not understood']
+    textResponse = []
     feature1 = feature2 = num1 = num2 = None
     id = contextObj.newId
     #I will need to add the patterns for the other tasks
-    patternOne = r'(Filter|Subset) by (\d+)\s*<\s*([_A-Za-z]+)\s*<\s*(\d+)' #Numerical
-    patternTwo = r"What is the correlation of the target with (\w+)"
-    patternThree = r"Show me the data"
-    patternFour =  r"Show me the stability"
-    patternFive =  r"What are the most important features"
-    patternSix = r"Track the previous response as (\w+)"
-    patternSeven = r"Show me tracked response (\w+)"
-    patternEight = r"(Filter|Subset) the data when feature (\w+) is (\w+)" #categorical 
-
-
-    match = re.match(patternOne, userInput)
-    
-    if match:
+    parsedQuery = queryParser(userInput)
+    matchedQuery = parsedQuery[0]
+    print('look at this: ')
+    print(parsedQuery[6])
+    if(parsedQuery[6]):
+        print('we made it here!')
+        textResponse = ['Intepreting query as: ' + parsedQuery[5]]
+    if matchedQuery == 1:
         numEntries = '0'
         if(contextObj.visType != 0):
             taskType = contextObj.visType
         else:
             taskType = -1
-        mode = match.group(1)
-        num1 = match.group(2)
-        feature1 = match.group(3)
-        num2 = match.group(4)
+        mode = parsedQuery[1]
+        num1 = parsedQuery[2]
+        feature1 = parsedQuery[3]
+        num2 = parsedQuery[4]
         idList = df[(df[feature1+'_v'] > float(num1)) & (df[feature1+'_v'] < float(num2))]['id'].tolist()
         if(mode == "Subset"):
-            contextObj.subsetId = idList #HEY CONOR THIS IS NOT DONE ALL OF THIS STUFF, FIX IT
+            contextObj.subsetId = idList 
             numEntries = str(len(idList))
         else:
             id = np.intersect1d(idList, contextObj.subsetId).tolist()
             numEntries = str(len(id))
-        textResponse = ['Applying ' + mode +', ' +  str(numEntries) + ' items matched']
-    match = re.match(patternTwo, userInput)
-    if match:
+        textResponse.append('Applying ' + mode +', ' +  str(numEntries) + ' items matched')
+    elif matchedQuery == 2:
         
         taskType = 2 
       #Example: "What is the correlation of the target with GRE_Score_v"
       #"What is the correlation of the target with TOEFL_Score_v"
-        feature1 = match.group(1)
+        feature1 = parsedQuery[1]
         if(feature1+'_v' in df.columns):
             if(feature1 not in showFeatures):
                     showFeatures.pop()
@@ -186,36 +223,30 @@ def processQuery(userInput, contextObj):
             filtered_df = df[df['id'].isin(chatContext.newId)]
            # cor = filtered_df[feature1+'_v'].corr(filtered_df[target])
            # textResponse = "The correlation between the target and " + feature1 + ' is ' + str(cor)+'.'
-            textResponse = [genResponse(taskType, filtered_df, feature1)]
+            textResponse.append(genResponse(taskType, filtered_df, feature1))
         else:
-            textResponse = ["There is no feature with the name " + feature1 + ". Please check the spelling or verify that it is a feature."]
+            textResponse.append("There is no feature with the name " + feature1 + ". Please check the spelling or verify that it is a feature.")
             feature1 = None
             taskType = -1
-    match = re.match(patternThree, userInput)
-    if match:
+    elif matchedQuery == 3:
         taskType = 3
-        textResponse = [genResponse(taskType, None, None)]
+        textResponse.append(genResponse(taskType, None, None))
 
 
-    match = re.match(patternFour, userInput)
-    if match:
+    elif matchedQuery == 4:
         taskType = 4
-        textResponse = [genResponse(taskType, None, None)]
-    match = re.match(patternFive, userInput)
-    if match:
+        textResponse.append(genResponse(taskType, None, None))
+    elif matchedQuery == 5:
         taskType = 5 #Feature attribution stuff
-        textResponse = [genResponse(taskType, None, None)]
-    match = re.match(patternSix, userInput)
-    if match:
+        textResponse.append(genResponse(taskType, None, None))
+    elif matchedQuery == 6:
         taskType = contextObj.visType
-        trackedName = match.group(1)
-        textResponse = ["Tracking message as: " + trackedName]
+        trackedName = parsedQuery[1]
+        textResponse.append("Tracking message as: " + trackedName)
         trackedResponses[trackedName] = len(contextObj.responses) - 1
-
-    match = re.match(patternSeven, userInput)
-    if match:
+    elif matchedQuery == 7:
         isTrackedVis = True
-        trackedName = match.group(1)
+        trackedName = parsedQuery[1]
         if trackedName in trackedResponses.keys():
             oldResponse = contextObj.responses[trackedResponses[trackedName]]
             taskType = oldResponse.visType
@@ -225,19 +256,18 @@ def processQuery(userInput, contextObj):
                     showFeatures.pop()
                     showFeatures.insert(0, oldResponse.oldParse[0])
             filtered_df = df[df['id'].isin(chatContext.newId)]
-            textResponse = ["Old response is: ", oldResponse.old[0],  'New Response is:',  genResponse(taskType, filtered_df,feature1)]
+            textResponse = textResponse + ["Old response is: ", oldResponse.old[0],  'New Response is:',  genResponse(taskType, filtered_df,feature1)]
         else:
             taskType = -1
-            textResponse = ['There is no tracked input named: ' + trackedName +', please check your spelling or enter a valid tracked response']
-    match = re.match(patternEight, userInput)
-    if match:
+            textResponse =  textResponse + ['There is no tracked input named: ' + trackedName +', please check your spelling or enter a valid tracked response']
+    elif matchedQuery == 8:
         if(contextObj.visType != 0):
             taskType = contextObj.visType
         else:
             taskType = -1
-        mode = match.group(1)
-        col = match.group(2)
-        categorical = match.group(3)
+        mode = parsedQuery[1]
+        col = parsedQuery[2]
+        categorical = parsedQuery[3]
         if(col in df.columns):
             idList = df[df[col] == categorical]['id'].tolist()
             if(mode == "Subset"):
@@ -245,9 +275,9 @@ def processQuery(userInput, contextObj):
                 contextObj.isSubset = True
             else:
                 id = idList
-            textResponse =['Applying ' + mode +', ' +  str(len(idList)) + ' items matched']
+            textResponse.append('Applying ' + mode +', ' +  str(len(idList)) + ' items matched')
         else:
-            textResponse = ['Error, theere is no categorical feature: ' + col + ' please double check your query!'] 
+            textResponse.append('Error, theere is no categorical feature: ' + col + ' please double check your query!')
 
         
     if(taskType != 0): #This is to update context object given a successful parse
@@ -278,6 +308,9 @@ def update_chat(n_clicks, user_input, chat_history):
     if n_clicks > 0 and user_input:
         # Append the user's message to the chat history
         chat_history.append({'sender': 'user', 'message': [user_input]})
+        print(type(user_input))
+       # gucci = formatQuery.match_text(user_input)
+       #print(gucci)
         currContext = processQuery(user_input,chatContext)
         if(currContext == None):
             chat_history.append({'sender': 'computer', 'message': ['Error or invalid input, please try again']})
