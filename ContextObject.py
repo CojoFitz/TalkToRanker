@@ -6,8 +6,10 @@ class ContextObject:
         self.visType = []
         self.trackedVis = False
         self.trackedName = ''
+        self.trackedResponses = {}
         self.subsetId = []
         self.isSubset = False
+        self.fairFilter = False
 
     def to_dict(self):
         return {

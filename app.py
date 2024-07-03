@@ -9,11 +9,12 @@ import numpy as np
 import json
 import pandas as pd
 import re
-from raceplotly.plots import barplot
+from helperFunctions import processHistogram,getBins,suggest_cutoff, checkAttribution, getFeatureList, prepareDF, fairnessCalc, suggestFairness
 from ContextObject import ContextObject
 from Response import Response
 import warnings
 from matchResponse import matchResponse
+from dash_extensions import Keyboard
 
 warnings.filterwarnings( #for some reason I get weird warnings with this version of pandas & plotly, but the new version breaks my graph 
     action="ignore",
@@ -21,36 +22,38 @@ warnings.filterwarnings( #for some reason I get weird warnings with this version
     category=FutureWarning,
     module=r"plotly\.express\._core",
 )
+
+
+arrowIcon = "https://cdn-icons-png.flaticon.com/512/3682/3682321.png"
+loadingIcon = "https://media.tenor.com/On7kvXhzml4AAAAj/loading-gif.gif"
+
+
 adm = 'admission_all.csv'
 credit = 'credit_risk_all.csv'
-df = pd.read_csv(credit)
+df = pd.read_csv(r'datasets/'+credit)
 target = 'y'
 chatContext = ContextObject()
-formatQuery = matchResponse()
+nonVisMatch = (1,6,8,9,10,11,13)
 chatContext.visType = 0
 defaultIds = df['id'].to_list()
 chatContext.subsetId = defaultIds
 chatContext.newId =defaultIds
 filtered_df = df[df['id'].isin(chatContext.newId)]
 previousMessage = 'NONE'
-trackedResponses = {}
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 custom_scrollbar_css = {
     'overflowY': 'scroll',
-    'height': '700px',
+    'height': '75vh',
     'scrollbarWidth': 'thin',
     'scrollbarColor': '#cccccc #f0f0f0',
 }
- #This is used to pull the index of the currently referenced tracked value, I need a more elegant way to do this
 
-def checkAttribution(checkDf):
-    checkDf = checkDf.loc[:, checkDf.columns.str.endswith('_a')]   
-    checkDf = checkDf.abs()
-    avgs = checkDf.mean(axis=0)
-    df_avgs = pd.DataFrame(avgs).reset_index()
-    df_avgs.columns = ['feature', 'mean absolute attribution']
-    df_avgs = df_avgs.sort_values(by=['mean absolute attribution'], axis=0, ascending=True)
-    return df_avgs
+featureDict = getFeatureList(df)
+allFeatures = ", ".join(featureDict['all'])
+categorical_features = featureDict['categorical']
+numerical_features = featureDict['numerical']
+
+formatQuery = matchResponse(allFeatures)
 avgDf = checkAttribution(df)
 topFeature = avgDf.tail(4)['feature'].tolist()
 topFeature = [element.rstrip('_a') for element in topFeature]
@@ -62,60 +65,34 @@ def blank_fig():
     fig.update_layout(template = None)
     fig.update_xaxes(showgrid = False, showticklabels = False, zeroline=False)
     fig.update_yaxes(showgrid = False, showticklabels = False, zeroline=False)
-    
+    fig.update_layout(modebar_remove=['zoom', 'pan', 'lasso', 'select', 'zoomIn', 'zoomOut', 'resetScale', 'autoScale', 'toImage'])
     return fig
 
 
 app.layout = html.Div([
     dbc.Container([
-        html.H4("User Input", className="card-title", style={'text-align': 'center', 'padding' :'9px'}),
+        html.H4("TalkToRanker", className="card-title", style={'text-align': 'center', 'padding' :'9px'}),
         html.Div(id="chat-output",
             style=custom_scrollbar_css,  # Apply custom scrollbar CSS
         ),
         html.Div([
+            Keyboard(captureKeys=["Enter"], id="keyboard", n_keyups = 0),
             dbc.Input(id="user-input", type="text", placeholder="Type your message..."),
-            html.Img(src="https://cdn-icons-png.flaticon.com/512/3682/3682321.png", id="submit-button", n_clicks=0, style={"cursor": "pointer", "width": "30px", "height": "30px"}),
+            html.Button( id="submit-button", n_clicks=0, style={"width": "30px", "height": "30px", "border":"none","background":"none"}, children=[html.Img(src="https://cdn-icons-png.flaticon.com/512/3682/3682321.png",style={"width": "30px", "height": "30px"}, id='submitIcon')]),
         ], style={"display": "flex", "align-items": "center", " flex-direction": "column-reverse","justify-content": "center"}),
         dcc.Store(id='chat-history', data=[]),
     ], className="p-5", style={"width": "40%", "margin-right": "auto", "margin-left": "0"}),
-    dcc.Graph(id="plot", style={"width": "900px", "height": "900px"}, figure = blank_fig()),
+    dcc.Graph(id="plot", style={"width": "75vw", "height": "90vh"}, figure = blank_fig(), config= {'displaylogo': False}),
     html.Div(id='dummy-output', style={'display': 'none'})  # Dummy output component to trick callback function to work, don't remove
 
 
-], className="d-flex justify-content-start")
+], className="d-flex justify-content-start", )
 
 
 
 
 numMessages = 0
 
-def prepareDF(processDf, selectionType): 
-    #This formats the DF in a way that works best for the graph
-    newDf = pd.melt(processDf, id_vars=['y','id'], var_name='feature', value_name='value')
-    featuresUsed = [showFeatures[0] + '_v', showFeatures[1] + '_v', showFeatures[2] + '_v', showFeatures[3] + '_v']
-    newDf = newDf[newDf['feature'].isin(featuresUsed)]
-    newDf['Selection'] = selectionType
-    return newDf
-
-
-def processHistogram(df, feats, binEdges):
-  #df is the df, feats is an array of features to be used, n_bin is num of bins
-
-  hisDf = pd.DataFrame()
-  for i in range((len(feats))):
-    df_fil = df[df.feature == feats[i]+'_v']
-    counts, bins = np.histogram(df_fil["value"], bins=binEdges[i])
-    binnedDf = pd.DataFrame({"bins": bins[1:], "counts": counts})
-    binnedDf['feature'] = feats[i]
-    hisDf = pd.concat([hisDf, binnedDf], ignore_index=True)
-  return hisDf
-def getBins (df, feats):
-    binEdges = []
-    for i in feats:
-        df_fil = df[df.feature == i + '_v']
-        featEdge = np.histogram_bin_edges(df_fil['value'], bins='scott')
-        binEdges.append(featEdge)
-    return binEdges
 
 
 
@@ -125,72 +102,51 @@ def genResponse(taskType, df, feature1):
     if(taskType == 0):
         genResp = 'Query not understood'
     elif(taskType == 2):
-            cor = df[feature1+'_v'].corr(df[target])
-            genResp = "The correlation between the target and " + feature1 + ' is ' + str(cor)+'.' #Correlation
+            cor = round(df[feature1+'_v'].corr(df[target]),3)
+            genResp = ["The correlation between the target and " + feature1 + ' is ' + str(cor)+'.'] #Correlation
     elif(taskType == 3):
-        genResp = 'Showing you the data' #Response to "Show me the data"
+        std = round(df[feature1+'_v'].std(),3)
+        mean = round(df[feature1+'_v'].mean(),3)
+        median = round(df[feature1+'_v'].median(),3)
+        genResp = ['Information about feature: ' + feature1, 'Standard Deviation: ' + str(std), 'Mean: ' + str(mean), 'Median: ' + str(median)]
     elif(taskType == 4):
         genResp = 'Showing you the stability' #Stability Response
+
     elif(taskType == 5):
-        genResp = 'Showing the most important features' #List most important features
+        mostImportant = [element.rstrip('_a') for element in (checkAttribution(df).tail(4)['feature'].tolist())]
+        mostImportant.reverse()
+        if len(mostImportant) > 1:
+            joined_features = ', '.join(mostImportant[:-1]) + ', and ' + mostImportant[-1]
+        else:
+            joined_features = mostImportant[0]
+        genResp = ['The four most important features are ', joined_features] #List most important features
+    elif(taskType == 6):
+        numerical_str = "numerical: " + ", ".join(numerical_features)
+        categorical_str = "categorical: " + ", ".join(categorical_features)
+        genResp = [numerical_str, categorical_str]
+    elif(taskType == 7):
+        genResp = ['Here are the fairness ratios:']
+        genResp += ([f"{key}: {value}" for key, value in fairnessCalc(feature1, df).items()])
+        
     return genResp
-
-
-
-def queryParser(query):
-    p1 = r'(Filter|Subset) by (\d+)\s*<\s*([_A-Za-z]+)\s*<\s*(\d+)' #Numerical
-    p2 = r"What is the correlation of the target with (\w+)"
-    p3 = r"Show me the data"
-    p4 =  r"Show me the stability"
-    p5 =  r"What are the most important features"
-    p6 = r"Track the previous response as (\w+)"
-    p7 = r"Show me tracked response (\w+)"
-    p8 = r"(Filter|Subset) the data when feature (\w+) is (\w+)" #categorical
-    patterns = [p1,p2,p3,p4,p5,p6,p7,p8]
-    matchData = [-9, None, None, None, None, query, False] #[Task, Capture1, Capture2, Capture3, Capture4, query, gptParse]
-    for p in range(0, len(patterns)):
-        match = re.match(patterns[p], query)
-        if match:
-            matchData[0] = p+1
-            for i in range(1,len(match.groups())+1):
-                matchData[i] = match.group(i)
-            return matchData
-    gptParse = formatQuery.match_text(query)
-    print(gptParse)
-    gptParse.replace('\"', '') #Sometimes it'll add quotation marks to the parse. I am just going to remove them to make things easier
-    matchData[5] = gptParse
-    matchData[6] = True
-
-    for p in range(0, len(patterns)):
-        match = re.match(patterns[p], gptParse)
-        if match:
-            matchData[0] = p+1
-            for i in range(1,len(match.groups())+1):
-                matchData[i] = match.group(i)
-            return matchData
-    return[-9, None, None, None, None, query, False] #If no match can be made, we will return an error
-
+def updateGlobalFeatures(feature):
+    if(feature not in showFeatures):
+        showFeatures.pop()
+        showFeatures.insert(0,feature)
     
-
-
-
-
-    
-
 def processQuery(userInput, contextObj):
     isTrackedVis = False
     trackedName = ''
     taskType = 0 #Zero will be our error state
     textResponse = []
-    feature1 = feature2 = num1 = num2 = None
+    feature1 = processedInfo = num1 = num2 = None
     id = contextObj.newId
     #I will need to add the patterns for the other tasks
-    parsedQuery = queryParser(userInput)
+    parsedQuery = formatQuery.queryParser(userInput,contextObj.parsedInfo)
     matchedQuery = parsedQuery[0]
-    print('look at this: ')
-    print(parsedQuery[6])
+
+
     if(parsedQuery[6]):
-        print('we made it here!')
         textResponse = ['Intepreting query as: ' + parsedQuery[5]]
     if matchedQuery == 1:
         numEntries = '0'
@@ -206,31 +162,33 @@ def processQuery(userInput, contextObj):
         if(mode == "Subset"):
             contextObj.subsetId = idList 
             numEntries = str(len(idList))
+            contextObj.fairFilter = False
         else:
             id = np.intersect1d(idList, contextObj.subsetId).tolist()
             numEntries = str(len(id))
+            if(feature1 == 'y'):
+                contextObj.fairFilter = True
+            else:
+                contextObj.fairFilter = False
+
+
         textResponse.append('Applying ' + mode +', ' +  str(numEntries) + ' items matched')
-    elif matchedQuery == 2:
-        
-        taskType = 2 
+    elif matchedQuery == 2 or matchedQuery == 3:
+        taskType = matchedQuery
       #Example: "What is the correlation of the target with GRE_Score_v"
       #"What is the correlation of the target with TOEFL_Score_v"
         feature1 = parsedQuery[1]
         if(feature1+'_v' in df.columns):
-            if(feature1 not in showFeatures):
-                    showFeatures.pop()
-                    showFeatures.insert(0,feature1)
-            filtered_df = df[df['id'].isin(chatContext.newId)]
+            updateGlobalFeatures(feature1)
+            subDf = df[df['id'].isin(chatContext.subsetId)]
+            filtered_df = subDf[subDf['id'].isin(chatContext.newId)]
            # cor = filtered_df[feature1+'_v'].corr(filtered_df[target])
            # textResponse = "The correlation between the target and " + feature1 + ' is ' + str(cor)+'.'
-            textResponse.append(genResponse(taskType, filtered_df, feature1))
+            textResponse += (genResponse(taskType, filtered_df, feature1))
         else:
             textResponse.append("There is no feature with the name " + feature1 + ". Please check the spelling or verify that it is a feature.")
             feature1 = None
             taskType = -1
-    elif matchedQuery == 3:
-        taskType = 3
-        textResponse.append(genResponse(taskType, None, None))
 
 
     elif matchedQuery == 4:
@@ -238,25 +196,28 @@ def processQuery(userInput, contextObj):
         textResponse.append(genResponse(taskType, None, None))
     elif matchedQuery == 5:
         taskType = 5 #Feature attribution stuff
-        textResponse.append(genResponse(taskType, None, None))
+        subDf = df[df['id'].isin(chatContext.subsetId)]
+        filtered_df = subDf[subDf['id'].isin(chatContext.newId)]
+        textResponse.append(genResponse(taskType, filtered_df, None))
     elif matchedQuery == 6:
         taskType = contextObj.visType
         trackedName = parsedQuery[1]
         textResponse.append("Tracking message as: " + trackedName)
-        trackedResponses[trackedName] = len(contextObj.responses) - 1
+        chatContext.trackedResponses[trackedName] = len(contextObj.responses) - 1
     elif matchedQuery == 7:
         isTrackedVis = True
         trackedName = parsedQuery[1]
-        if trackedName in trackedResponses.keys():
-            oldResponse = contextObj.responses[trackedResponses[trackedName]]
+        if trackedName in chatContext.trackedResponses.keys():
+            oldResponse = contextObj.responses[chatContext.trackedResponses[trackedName]]
             taskType = oldResponse.visType
             feature1 = oldResponse.oldParse[0]
             if(feature1):
                 if(feature1 not in showFeatures):
                     showFeatures.pop()
                     showFeatures.insert(0, oldResponse.oldParse[0])
-            filtered_df = df[df['id'].isin(chatContext.newId)]
-            textResponse = textResponse + ["Old response is: ", oldResponse.old[0],  'New Response is:',  genResponse(taskType, filtered_df,feature1)]
+            subDf = df[df['id'].isin(chatContext.subsetId)]
+            filtered_df = subDf[subDf['id'].isin(chatContext.newId)]
+            textResponse = textResponse + ["Old response is: " ]+ oldResponse.old + ['New Response is:'] + genResponse(taskType, filtered_df,feature1)
         else:
             taskType = -1
             textResponse =  textResponse + ['There is no tracked input named: ' + trackedName +', please check your spelling or enter a valid tracked response']
@@ -269,25 +230,105 @@ def processQuery(userInput, contextObj):
         col = parsedQuery[2]
         categorical = parsedQuery[3]
         if(col in df.columns):
+            numEntries = 0
+            contextObj.fairFilter = False
             idList = df[df[col] == categorical]['id'].tolist()
             if(mode == "Subset"):
-                contextObj.subsetId = idList
-                contextObj.isSubset = True
+                contextObj.subsetId = idList 
+                numEntries = str(len(idList))
             else:
-                id = idList
-            textResponse.append('Applying ' + mode +', ' +  str(len(idList)) + ' items matched')
+                id = np.intersect1d(idList, contextObj.subsetId).tolist()
+                numEntries = str(len(id))
+            textResponse.append('Applying ' + mode +', ' +  str(numEntries) + ' items matched')
         else:
             textResponse.append('Error, theere is no categorical feature: ' + col + ' please double check your query!')
+    elif matchedQuery == 9:
+        taskType = 6
+        textResponse = genResponse(taskType, df, None)
+        if(contextObj.visType != 0):
+            taskType = contextObj.visType
+        else:
+            taskType = -1
+        #We might be better off having a system where it keeps in mind the last task type or something idk
+    elif matchedQuery == 10:
+        topNum = int(parsedQuery[1])
+        if(contextObj.visType != 0):
+            taskType = contextObj.visType
+        else:
+            taskType = -1
+        subDf = df[df['id'].isin(contextObj.subsetId)]
+        id = subDf.nlargest(topNum, 'y')['id'].tolist()
+        if(topNum > len(subDf)):
+            textResponse.append('Selection of top ' + str(topNum) + ' is too big, selecting top ' + str(len(subDf)) + ' instead.')
+            topNum = len(subDf)
+        textResponse.append('Getting top ' + str(topNum) + ' items')
+        suggestedCutoff = suggest_cutoff(topNum,subDf['y'].to_numpy())
+        if(suggestedCutoff != None):
+            textResponse += suggestedCutoff
+        contextObj.fairFilter = True
 
-        
+
+    elif matchedQuery == 11:
+        numEntries = '0'
+        if(contextObj.visType != 0):
+            taskType = contextObj.visType
+        else:
+            taskType = -1
+        mode = parsedQuery[1]
+        feat = parsedQuery[2]
+        a_columns = [col for col in df.columns if col.endswith('_a')]
+        if(feat+'_a' not in a_columns):
+            textResponse.append("There is no feature with the name " + feat + ". Please check the spelling or verify that it is a feature.")
+        else:
+
+            mask = df[feat+'_a'] == df[a_columns].max(axis=1)
+            idList = df.loc[mask, 'id']
+            if(mode == "Subset"):
+                contextObj.subsetId = idList 
+                numEntries = str(len(idList))
+            else:
+                id = np.intersect1d(idList, contextObj.subsetId).tolist()
+                numEntries = str(len(id))
+            textResponse.append('Applying ' + mode +', ' +  str(numEntries) + ' items matched')
+    elif matchedQuery == 12:
+        feature1 = parsedQuery[1]
+        taskType = 7
+        if(contextObj.fairFilter):
+            subDf = df[df['id'].isin(chatContext.subsetId)]
+            subDf['selection'] = subDf['id'].apply(lambda x: 'selected' if x in chatContext.newId else 'unselected')
+            textResponse = genResponse(taskType,subDf,feature1)
+        else:
+            textResponse = ['Invalid Request. Fairness can only be calculated using filters involving the target.']
+            taskType = 0
+    elif matchedQuery == 13:
+        if(contextObj.visType != 0):
+            taskType = contextObj.visType
+        else:
+            taskType = -1
+        feature1 = parsedQuery[1]
+        if(contextObj.fairFilter):
+            subDf = df[df['id'].isin(chatContext.subsetId)]
+            subDf['selection'] = subDf['id'].apply(lambda x: 'selected' if x in chatContext.newId else 'unselected')
+            textResponse = ['Suggested cutoff point is top '  + str(suggestFairness(feature1,subDf))]
+        else:
+            textResponse = ['Invalid Request. Fairness can only be calculated using filters involving the target.']
+
     if(taskType != 0): #This is to update context object given a successful parse
-        parsedInfo =  [feature1,feature2,num1,num2,showFeatures]
+        parsedInfo = []
+        oldResponse = "" 
+        if((matchedQuery in nonVisMatch) and (len(contextObj.responses)>0)):
+            oldResponse = contextObj.responses[len(contextObj.responses)-1].old
+            parsedInfo = contextObj.parsedInfo
+        else:
+            parsedInfo =  [feature1,processedInfo,num1,num2,showFeatures]
+            oldResponse = textResponse
+
         contextObj.newId = id
         contextObj.trackedVis = isTrackedVis
         contextObj.trackedName = trackedName
         contextObj.parsedInfo = parsedInfo
         contextObj.visType = taskType
-        response = Response(id, textResponse, textResponse, taskType, parsedInfo)
+        response = Response(id, oldResponse, textResponse, taskType, parsedInfo)
         contextObj.responses.append(response)
         return contextObj
     else:
@@ -298,25 +339,28 @@ def processQuery(userInput, contextObj):
      Output("user-input", "value"),  # Reset user input
      Output('chat-history', 'data'),
      ], 
-    [Input("submit-button", "n_clicks")],
+    [Input("submit-button", "n_clicks"),
+     Input("keyboard", "n_keyups"),
+     ],
     [State("user-input", "value"),
-     State('chat-history', 'data')]
+     State('chat-history', 'data')],
+     running=[(Output("user-input", "disabled"), True, False),
+              (Output("keyboard", "disabled"), True, False),
+              (Output("submit-button", "disabled"), True, False),
+              (Output("submitIcon", "src"), loadingIcon, arrowIcon)],
 )
 
-
-def update_chat(n_clicks, user_input, chat_history):
-    if n_clicks > 0 and user_input:
+def update_chat(n_clicks, n_keyups, user_input, chat_history):
+    if (n_clicks > 0 or n_keyups > 0) and user_input:
         # Append the user's message to the chat history
+        # Empty user input
         chat_history.append({'sender': 'user', 'message': [user_input]})
-        print(type(user_input))
-       # gucci = formatQuery.match_text(user_input)
-       #print(gucci)
+
         currContext = processQuery(user_input,chatContext)
         if(currContext == None):
             chat_history.append({'sender': 'computer', 'message': ['Error or invalid input, please try again']})
         else:
-            chat_history.append({'sender': 'computer', 'message': currContext.responses[len(currContext.responses)-1].old})
-        # Empty user input
+            chat_history.append({'sender': 'computer', 'message': currContext.responses[len(currContext.responses)-1].new})
         user_input = ""
 
     chat_output = [
@@ -325,20 +369,29 @@ def update_chat(n_clicks, user_input, chat_history):
  [
             dbc.CardBody(
                 content, 
-                className="user-bubble" if message['sender'] == 'user' else "computer-bubble",
-                style={"color": "white"} if message['sender'] == 'user' else {"color": "black"},
+                className="user-bubble" if chat_history[i]['sender'] == 'user' else "computer-bubble",
+                style={
+                    "color": "white" if chat_history[i]['sender'] == 'user' else "black",
+                      # top right bottom left
+                      "padding": "4px 20px 4px 20px",
+
+                }
             )
-            for content in message['message']
+            for content in chat_history[i]['message']
         ],
-            className="user-bubble-card" if message['sender'] == 'user' else "computer-bubble-card",
+            className="user-bubble-card" if chat_history[i]['sender'] == 'user' else "computer-bubble-card",
             style={
-                "background-color": "#147efb" if message['sender'] == 'user' else "#D3D3D3",  # Background color
+                "background-color": "#147efb" if chat_history[i]['sender'] == 'user' else "#D3D3D3",  # Background color
+                "margin-right": "10px" if chat_history[i]['sender'] == 'user' else "auto",  # Align user on left, computer on right
+                "margin-left": "10px" if chat_history[i]['sender'] != 'user' else "auto",  # Align computer on right, user on left
+                "padding-top": "10px",
+                "padding-bottom": "10px",
                 "width": "200px",
-                "margin-right": "10px" if message['sender'] == 'user' else "auto",  # Align user on left, computer on right
-                "margin-left": "10px" if message['sender'] != 'user' else "auto",  # Align computer on right, user on left
+                "margin-top": "10px" if i != 0 else "auto",
+
             }
         )
-        for message in chat_history
+        for i in range(0,len(chat_history))
     ]
         
     return chat_output, user_input, chat_history
@@ -347,14 +400,17 @@ def update_chat(n_clicks, user_input, chat_history):
     Output("dummy-output", "children"),  # Dummy output
     [Input("plot", "selectedData")]
 )
-def display_selected_data(selected_data):#This is for debugging purposes only, 
+def display_selected_data(selected_data):
     if selected_data:
         points = selected_data["points"]
         pointDf = pd.json_normalize(points)
         idList = pointDf['customdata'].tolist()
         flatIdList = [item for sublist in idList for item in sublist]
         chatContext.newId = flatIdList
-
+        if(chatContext.visType == 4):
+            chatContext.fairFilter = True
+        else:
+            chatContext.fairFilter = False
         return flatIdList
     else:
         return "No points selected."
@@ -372,10 +428,9 @@ def update_chart(chat_history,flatIdList):
         if(chatContext.visType == -1):
             return blank_fig()
         subDf = df[df['id'].isin(chatContext.subsetId)]#subset df
-
         filtered_df = subDf[subDf['id'].isin(chatContext.newId)]
-        unfilt_df = prepareDF(subDf, 'unselected')
-        df_melted = prepareDF(filtered_df, 'selected')
+        unfilt_df = prepareDF(subDf, 'unselected',showFeatures)
+        df_melted = prepareDF(filtered_df, 'selected',showFeatures)
         result = pd.concat([df_melted,unfilt_df])
         
         if(chatContext.visType == 2):
@@ -393,9 +448,9 @@ def update_chart(chat_history,flatIdList):
                     "feature": [showFeatures[0] + '_v', showFeatures[1] + '_v', showFeatures[2] + '_v', showFeatures[3] + '_v']})  
                 
             else:
-                tracked = chatContext.responses[trackedResponses[chatContext.trackedName]]
+                tracked = chatContext.responses[chatContext.trackedResponses[chatContext.trackedName]]
                 oldFilter = subDf[subDf['id'].isin(tracked.oldId)]
-                oldFilter = prepareDF(oldFilter,'selected')
+                oldFilter = prepareDF(oldFilter,'selected',showFeatures)
                 featuresUsed = tracked.oldParse[4]
                 
                 fig = px.scatter(unfilt_df, x="value", facet_col_spacing=0.04, y="y", facet_col="feature",color='Selection', color_discrete_sequence=['#4590ff', 'rgba(44,69,107, 0.2)'], facet_col_wrap=2,custom_data=['id'], hover_data={'id': True},  category_orders={ 
@@ -423,17 +478,18 @@ def update_chart(chat_history,flatIdList):
                 unfiltHis['Selection'] = 'Unselected'
                 newResult = pd.concat([unfiltHis,newHis])
                 fig = px.bar(newResult, x="bins", y = "counts", facet_col="feature", facet_col_spacing=0.04, color="Selection", facet_col_wrap=2,  barmode="overlay", category_orders={ 
-                  "feature": [showFeatures[0] , showFeatures[1] , showFeatures[2], showFeatures[3]]}, color_discrete_sequence=['rgba(44,69,107, 0.2)','#0096FF'])  
+                  "feature": [showFeatures[0] , showFeatures[1] , showFeatures[2], showFeatures[3]]}, color_discrete_sequence=['rgba(44,69,107, 0.2)','#0096FF'], )  
+                fig.update_layout(modebar_remove=['select', 'lasso'])
+
             else:
 
                 #this one is really weird, for some reason plotly does not have smooth animations for histograms
                 #so I am pre-processing the data to be a barchart pretending to be a histogram
 
-                tracked = chatContext.responses[trackedResponses[chatContext.trackedName]]
-
+                tracked = chatContext.responses[chatContext.trackedResponses[chatContext.trackedName]]
                 oldFilter = subDf[subDf['id'].isin(tracked.oldId)]
                 featuresUsed =tracked.oldParse[4]
-                oldMelted = prepareDF(oldFilter, 'selected')
+                oldMelted = prepareDF(oldFilter, 'selected',showFeatures)
                 unfiltHis = processHistogram(unfilt_df, featuresUsed, binEdge)
                 unfiltHis['Selection'] = 'Unselected'
                 newHis = processHistogram(df_melted, featuresUsed, binEdge)
@@ -449,7 +505,6 @@ def update_chart(chat_history,flatIdList):
                 newResult['oldNew'] = 'new'
                 
 
-
                 completeDf = pd.concat([newResult,oldResult])
 
                 graphRanges = []
@@ -464,7 +519,9 @@ def update_chart(chat_history,flatIdList):
                 fig.update_yaxes(range= [0,graphRanges[2]], row=1, col = 1) #Bottom Left
                 fig.update_yaxes(range= [0,graphRanges[3]], row=1, col = 2) #Bottom Right
         
-            fig.update_layout(bargap=0.01)
+                fig.update_layout(bargap=0.01)
+                fig.update_layout(modebar_remove=['select', 'lasso'])
+
            
 
 
@@ -477,19 +534,42 @@ def update_chart(chat_history,flatIdList):
             fig = px.scatter(rankDf, x="rank",  y="y", color='Selection', color_discrete_sequence=['#4590ff', 'rgba(44,69,107, 0.2)'], hover_data={'id': True},  category_orders={ 
                 "Selection": ["selected","unselected"]})
             fig.update_traces(selected=dict(marker=dict(color='#4590ff')), unselected=dict(marker=dict(color='rgba(44,69,107, 0.2)')))
+            
         elif(chatContext.visType == 5):
 
             df_avgs = checkAttribution(filtered_df)
             if(not chatContext.trackedVis):
                 fig = px.bar(df_avgs, x="mean absolute attribution", y="feature", orientation='h')
             else:
-                oldFilter = subDf[subDf['id'].isin(chatContext.responses[trackedResponses[chatContext.trackedName]].oldId)]
+                oldFilter = subDf[subDf['id'].isin(chatContext.responses[chatContext.trackedResponses[chatContext.trackedName]].oldId)]
                 old_avgs = checkAttribution(oldFilter)
                 old_avgs['oldNew'] = 'old'
                 df_avgs['oldNew'] = 'new'
                 combinedDf = pd.concat([old_avgs,df_avgs ], ignore_index=True)
                 fig = px.bar(combinedDf, x="mean absolute attribution", y="feature", orientation='h', animation_frame="oldNew")
-        
+            fig.update_layout(modebar_remove=['select', 'lasso'])
+        elif(chatContext.visType == 7):
+            if(not chatContext.trackedVis):
+                subDf['selection'] = subDf['id'].apply(lambda x: 'selected' if x in chatContext.newId else 'unselected')
+                featOne = chatContext.parsedInfo[0]
+                ratioDf = pd.DataFrame(list(fairnessCalc(chatContext.parsedInfo[0],subDf).items()), columns=['category', 'ratio'])
+                fig = px.bar(ratioDf, x="category", y="ratio", orientation='v')
+                fig.update_yaxes(range=[0, 1])
+            else:
+                tracked = chatContext.responses[chatContext.trackedResponses[chatContext.trackedName]]
+                subDf['selection'] = subDf['id'].apply(lambda x: 'selected' if x in chatContext.newId else 'unselected')
+
+                newRatio = pd.DataFrame(list(fairnessCalc(chatContext.parsedInfo[0],subDf).items()), columns=['category', 'ratio'])
+                newRatio['oldNew'] = 'new'
+
+                subDf['selection'] = subDf['id'].apply(lambda x: 'selected' if x in tracked.oldId else 'unselected')
+                oldRatio = pd.DataFrame(list(fairnessCalc(chatContext.parsedInfo[0],subDf).items()), columns=['category', 'ratio'])
+                oldRatio['oldNew'] = 'old'
+
+                combinedDf = pd.concat([oldRatio,newRatio], ignore_index=True)
+                fig = px.bar(combinedDf, x="category", y="ratio", orientation='v', animation_frame="oldNew")
+                fig.update_yaxes(range=[0, 1])
+            fig.update_layout(modebar_remove=['select', 'lasso'])
 
         fig.update_layout(showlegend=False)
        # fig.update_xaxes(range=[0, None])
@@ -507,4 +587,4 @@ def update_chart(chat_history,flatIdList):
         return blank_fig()
 
 if __name__ == "__main__":
-    app.run_server(debug=True)
+    app.run_server(debug=False)
