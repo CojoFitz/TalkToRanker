@@ -282,6 +282,8 @@ def boldText(label, text):
     return html.P([html.B(label),text]
     )
 
+
+
 introText = [""" Algorithmic rankers prove to be very useful in a multitude of different areas, as they assist greatly in the processes of making decisions. While those with data literacy may view ranker models as intuitive and easy to analyze, there is undeniably some level of knowledge required for one to obtain the answers to the questions they may have. As such, the average person may find it hard to utilize tools relating to rankings to the fullest extent. Our interface aims to make the process of utilizing rankers more accessible and intuitive. This is accomplished by leveraging, explainable artificial intelligence and visualizations to allow for rankers to be more accessible. """]
 introHeader = 'Abstract'
 
@@ -355,6 +357,14 @@ visualBody = [f"""The visual explainer's job is to offer a visual explanation fo
                     ])
             ]
 
+sources = html.Div([
+    html.P("[1] Brown, Tom, et al. \"Language models are few-shot learners.\" Advances in neural information processing systems 33 (2020): 1877-1901."),
+    html.P("[2] Maddigan, Paula, and Teo Susnjak. \"Chat2VIS: generating data visualizations via natural language using ChatGPT, codex and GPT-3 large language models.\" Ieee Access 11 (2023): 45181-45193."),
+    html.P("[3] Yi Liu, Gelei Deng, Zhengzi Xu, Yuekang Li, Yaowen Zheng, Ying Zhang, Lida Zhao, Tianwei Zhang, Kailong Wang, Yang Liu: “Jailbreaking ChatGPT via Prompt Engineering: An Empirical Study”, 2023; arXiv:2305.13860."),
+    html.P("[4] Slack, Dylan, et al. \"Explaining machine learning models with interactive natural language conversations using TalkToModel.\" Nature Machine Intelligence 5.8 (2023): 873-883."),
+    html.P("[5] Nguyen, Van Bach, Jörg Schlötterer, and Christin Seifert. \"From black boxes to conversations: Incorporating xai in a conversational agent.\" World Conference on Explainable Artificial Intelligence. Cham: Springer Nature Switzerland, 2023."),
+])
+
 
     
 app.layout = html.Div([
@@ -385,8 +395,9 @@ html.Div(
     textSection(parserHeader,parserText),
     textSection(contextHeader,contextBody),
     textSection(textualHeader, textualBody),
-    textSection(visualHeader, visualBody)
-
+    textSection(visualHeader, visualBody),
+    textSection('Sources',sources)
+    
 
 ],
 ),
