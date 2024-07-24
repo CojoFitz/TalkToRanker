@@ -459,7 +459,7 @@ html.Div(["Enter OpenAi Api Key to start:",
             html.Button( id="submit-button", n_clicks=0, style={"width": "30px", "height": "30px", "border":"none","background":"none"}, children=[html.Img(src="https://cdn-icons-png.flaticon.com/512/3682/3682321.png",style={"width": "30px", "height": "30px"}, id='submitIcon')]),
         ], style={"display": "flex", "align-items": "center", " flex-direction": "column-reverse","justify-content": "center"}),
         dcc.Store(id='chat-history', data=[]),
-        dcc.Store(id='features', storage_type='local', data=[]),
+        dcc.Store(id='features', storage_type='memory', data=[]),
 
     ], className="p-5", style={"width": "40%", "margin-right": "auto", "margin-left": "0"}),
     dbc.Stack(
