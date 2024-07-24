@@ -29,7 +29,7 @@ loadingIcon = "https://media.tenor.com/On7kvXhzml4AAAAj/loading-gif.gif"
 testImage = "https://placehold.co/600x400/EEE/31343C"
 figureC = 'assets/figureC.png'
 diagramImage = 'assets/DiagramOverview.png'
-figureAb = 'assets/figureab.png'
+figureAb = 'assets/FigureBA.png'
 
 
 
