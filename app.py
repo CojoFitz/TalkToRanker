@@ -1,5 +1,5 @@
-import dash, math, warnings
-from dash import dcc, html, callback, ctx
+import dash, math, warnings,json, jsonpickle, openai
+from dash import dcc, html, callback, no_update
 from dash.dependencies import Input, Output, State
 import plotly.express as px
 import dash_bootstrap_components as dbc
@@ -30,6 +30,8 @@ testImage = "https://placehold.co/600x400/EEE/31343C"
 figureC = 'assets/figureC.png'
 diagramImage = 'assets/DiagramOverview.png'
 figureAb = 'assets/FigureBA.png'
+good = 'assets/good.png'
+error = 'assets/error.png'
 
 
 
@@ -37,13 +39,11 @@ adm = 'admission_all.csv'
 credit = 'credit_risk_all.csv'
 df = pd.read_csv(r'datasets/'+adm)
 target = 'y'
-chatContext = ContextObject()
+
 nonVisMatch = (1,6,8,9,10,11,13)
-chatContext.visType = 0
-defaultIds = df['id'].to_list()
-chatContext.subsetId = defaultIds
-chatContext.newId =defaultIds
-filtered_df = df[df['id'].isin(chatContext.newId)]
+#--------------------------
+
+#------------------------------
 previousMessage = 'NONE'
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP], title='TalkToRanker')
 custom_scrollbar_css = {
@@ -68,6 +68,15 @@ topFeature = [element.rstrip('_a') for element in topFeature]
 topFeature.reverse()
 showFeatures = topFeature
 
+def check_openai_api_key(api_key):
+    client = openai.OpenAI(api_key=api_key)
+    try:
+        client.models.list()
+    except openai.AuthenticationError:
+        return False
+    else:
+        return True
+
 def blank_fig():
     fig = go.Figure(go.Scatter(x=[], y = []))
     fig.update_layout(template = None)
@@ -76,17 +85,6 @@ def blank_fig():
     fig.update_layout(modebar_remove=['zoom', 'pan', 'lasso', 'select', 'zoomIn', 'zoomOut', 'resetScale', 'autoScale', 'toImage'])
     return fig
 
-def makeButton(feat, num):
-    featureButton = dbc.Button(
-        [
-            feat,
-            dbc.Badge("x", text_color="light"),
-        ],
-        color="primary",
-        style={"width": "100px","font-size": "10px", "margin-top" : "45px"},
-        id ={'role': feat, 'index': num}
-    )
-    return featureButton
 
 
 
@@ -285,6 +283,36 @@ def sources():
     html.P("[5] Nguyen, Van Bach, Jörg Schlötterer, and Christin Seifert. \"From black boxes to conversations: Incorporating xai in a conversational agent.\" World Conference on Explainable Artificial Intelligence. Cham: Springer Nature Switzerland, 2023."),
 ]),
 
+def exampleQueries():
+    return html.Div([    
+    html.P("1. \"What is the distribution of {{features}}\" - Shows the distribution of the data."),
+    
+    html.P("2. \"Show me the stability\" - Shows stability of the data"),
+    
+    html.P("3. \"What are the most important features\" - Ranks feature attribution"),
+    
+    html.P("4. \"What is the correlation of the target with {{features}}\" - Shows correlation between a feature and the target"),
+    
+    html.P("5. \"(Filter or Subset) by {{number}}<{{feature}}<{{number}}\" - Filter OR subset based on a numerical feature range. Specify the upper and lower bound of the filter. Subsetting removes points not in the range, while filtering will just highlight the range."),
+    
+    html.P("6. \"(Filter or Subset) the data when {{feature}} is {{value}}\" - Filter OR subset based on the value of a categorical feature. Subsetting removes points not in the range, while filtering will just highlight the range."),
+    
+    html.P("7. \"Track the previous response as {{name}}\" - Tracks the previous response and stores the selected ids and subsets"),
+    
+    html.P("8. \"Show me tracked response {{name}}\" - Shows the tracked response, allowing the user to compare how the value handled by the response has changed in comparison to the original state."),
+    
+    html.P("9. \"What are the available features\" - Lists the features that are available"),
+    
+    html.P("10. \"Select the top {{number}}\" - Filters the selection to be the top n items. An example would be \"Select the top 8\""),
+    
+    html.P("11. \"(Filter or Subset) the data such that {{feature}} is the most important feature\" This creates a filter or subset to make sure that the columns selected are the most important feature."),
+    
+    html.P("12. \"Show me the fairness of the current filter on {{feature}}\" Shows the fairness of the given feature"),
+    
+    html.P("13. \"Suggest a better cutoff for fairness on {{feature}}\" Suggests a better selection for fairness of the given feature")
+])
+
+
 introText = [""" Algorithmic rankers prove to be very useful in a multitude of different areas, as they assist greatly in the processes of making decisions. While those with data literacy may view ranker models as intuitive and easy to analyze, there is undeniably some level of knowledge required for one to obtain the answers to the questions they may have. As such, the average person may find it hard to utilize tools relating to rankings to the fullest extent. Our interface aims to make the process of utilizing rankers more accessible and intuitive. This is accomplished by leveraging, explainable artificial intelligence and visualizations to allow for rankers to be more accessible. """]
 introHeader = 'Abstract'
 
@@ -363,6 +391,7 @@ visualBody = [f"""The visual explainer's job is to offer a visual explanation fo
 
     
 app.layout = html.Div([
+    dcc.Store(id='chat-context', storage_type='memory'),
 
 
 html.Div(
@@ -392,6 +421,7 @@ html.Div(
     textSection(textualHeader, textualBody),
     textSection(visualHeader, visualBody),
     textSection('Sources',[sources()]),
+    textSection('Example Queries',[exampleQueries()]),
     textSection('Try the interface out for yourself: ',''),
     textSection('',''),
 
@@ -400,11 +430,12 @@ html.Div(
 
 ],
 ),
-html.Div(["Enter OpenAi Api Key:",
+html.Div(["Enter OpenAi Api Key to start:",
             html.Div(dcc.Input(id='apikey', type='password')),
             html.Button('Submit', id='apiButton'),
-            html.Div(id='output-container-button',
-                    children='Enter a value and press submit')
+            html.Div(id='output-container-button', children=[
+        html.Img(id='apiIcon', src=error,style={'width': '30px', 'height': '30px', 'margin-left' : '10px'})
+    ])
         ],style={"display": "flex", "align-items": "center", " flex-direction": "column-reverse","justify-content": "center"}),
 
     
@@ -417,8 +448,14 @@ html.Div(["Enter OpenAi Api Key:",
             style=custom_scrollbar_css,  # Apply custom scrollbar CSS
         ),
         html.Div([
-            Keyboard(captureKeys=["Enter"], id="keyboard", n_keyups = 0),
-            dbc.Input(id="user-input", type="text", placeholder="Type your message..."),
+            Keyboard(
+                id="keyboard",
+                captureKeys=["Enter"],
+                n_keyups=0,
+                children=[
+                    dbc.Input(id="user-input", type="text", placeholder="Type your message...", disabled=True)
+                ]
+            , style={'width':'100%'}),
             html.Button( id="submit-button", n_clicks=0, style={"width": "30px", "height": "30px", "border":"none","background":"none"}, children=[html.Img(src="https://cdn-icons-png.flaticon.com/512/3682/3682321.png",style={"width": "30px", "height": "30px"}, id='submitIcon')]),
         ], style={"display": "flex", "align-items": "center", " flex-direction": "column-reverse","justify-content": "center"}),
         dcc.Store(id='chat-history', data=[]),
@@ -438,42 +475,59 @@ html.Div(["Enter OpenAi Api Key:",
 
 
 @callback(
-    Output('output-container-button', 'children'),
+   [Output('chat-context', 'data',allow_duplicate=True),
+    Output('apiIcon','src'),
+    Output('user-input', 'disabled'),
+    Output("submit-button", "disabled")
+    ],
     Input('apiButton', 'n_clicks'),
-    State('apikey', 'value'))
+    State('apikey', 'value'),
+    running=[Output("apiIcon", "src"), loadingIcon, error],
+    prevent_initial_call=True
+)
 
-
-def update_output(n_clicks, value):
+def createContext(n_clicks, value):
     if(value is not None):
         apiKey = value
-
-        predictedContext = contextualPredictor(allFeatures, apiKey)
-        contextualUsage = predictedContext.predictContextualUse()
-        scoreName = predictedContext.contextualizeScore(contextualUsage)
-        elementName = predictedContext.contextualizeElement()
-
-        chatContext.apiKey = apiKey
-        chatContext.elementName = elementName
-        chatContext.scoreName = scoreName
-        chatContext.contextUse = contextualUsage
+        validKey = check_openai_api_key(apiKey)
+        if(validKey):
+            icon = good
+            chatContext = ContextObject()
+            chatContext.visType = 0
+            defaultIds = df['id'].to_list()
+            chatContext.subsetId = defaultIds
+            chatContext.newId =defaultIds
+            chatContext.apiKey = apiKey
+            predictedContext = contextualPredictor(allFeatures, apiKey)
+            contextualUsage = predictedContext.predictContextualUse()
+            scoreName = predictedContext.contextualizeScore(contextualUsage)
+            elementName = predictedContext.contextualizeElement()
+            chatContext.elementName = elementName
+            chatContext.scoreName = scoreName
+            chatContext.contextUse = contextualUsage
+            pickledChatContext = jsonpickle.encode(chatContext)
+            return pickledChatContext,icon,False,False
+    return None, error, True, True
 
 numMessages = 0
 
 
 
 
-def genResponse(taskType, df, feature1,userInput):
+def genResponse(taskType, df, feature1,userInput,chatContext):
+    #We can have it take chatContext as a parameter
     explainer = creativeExplainer(chatContext.contextUse, chatContext.apiKey)
     genResp = 'None'
+    staticResp = 'None'
     if(taskType == 0):
         genResp = 'Query not understood'
     elif(taskType == 2):
         genResp = []
         for feat in feature1:
             cor = round(df[feat+'_v'].corr(df[target]),3)
-            genResp += ["The correlation between the target and " + feat + ' is ' + str(cor)+'.'] #Correlation
+            staticResp = ["The correlation between the target and " + feat + ' is ' + str(cor)+'.'] #Correlation
         
-        staticInput = ' '.join(genResp)
+        staticInput = ' '.join(staticResp)
         genResp = [explainer.explainGen(userInput,staticInput)]
 
     elif(taskType == 3):
@@ -482,12 +536,13 @@ def genResponse(taskType, df, feature1,userInput):
             std = round(df[feat+'_v'].std(),3)
             mean = round(df[feat+'_v'].mean(),3)
             median = round(df[feat+'_v'].median(),3)
-            staticInput = ['Information about feature: ' + feat, 'Standard Deviation: ' + str(std), 'Mean: ' + str(mean), 'Median: ' + str(median)]
-            staticInput = ' '.join(staticInput)
+            staticResp = ['Information about feature: ' + feat, 'Standard Deviation: ' + str(std), 'Mean: ' + str(mean), 'Median: ' + str(median)]
+            staticInput = ' '.join(staticResp)
             genResp = [explainer.explainGen(userInput,staticInput)]
 
     elif(taskType == 4):
-        genResp = 'Showing you the stability' #Stability Response
+        genResp = 'Displaying the stability (NOTE DO NOT ANSWER ABOUT HOW STABLE THE DATASET IS, AS YOU DO NOT HAVE THAT INFORMATION GIVEN TO YOU. You can answer supplementary questions, but nothing specific to the dataset. If you do not know how to respond, just say you are displaying the stability)' #Stability Response
+        genResp = explainer.explainGen(userInput,genResp)
 
     elif(taskType == 5):
         mostImportant = [element.rstrip('_a') for element in (checkAttribution(df).tail(4)['feature'].tolist())]
@@ -496,7 +551,10 @@ def genResponse(taskType, df, feature1,userInput):
             joined_features = ', '.join(mostImportant[:-1]) + ', and ' + mostImportant[-1]
         else:
             joined_features = mostImportant[0]
-        genResp = ['The four most important features are ', joined_features] #List most important features
+        staticResp = ['The four most important features are ', joined_features] #List most important features
+        staticInput = ' '.join(staticResp)
+        genResp = explainer.explainGen(userInput,staticInput)
+
     elif(taskType == 6):
         numerical_str = "numerical: " + ", ".join(numerical_features)
         categorical_str = "categorical: " + ", ".join(categorical_features)
@@ -505,29 +563,22 @@ def genResponse(taskType, df, feature1,userInput):
         genResp = ['Here are the fairness ratios:']
         genResp += ([f"{key}: {value}" for key, value in fairnessCalc(feature1, df).items()])
         
-    return genResp
+    return [genResp, staticResp]
 
 
-def updateGlobalFeatures(feature):
-    showFeatures = feature
-    #for feat in feature:
-      #  if (feat in showFeatures):
 
- #   if(feature not in showFeatures):
-    #    if(len(showFeatures)>=4):
-      #      showFeatures.pop()
-       # showFeatures.insert(0,feature)
-      #  getButtons(showFeatures)\
 
 def processQuery(userInput, contextObj):
+    #MARKER 2
     isTrackedVis = False
+    staticResp = ''
     trackedName = ''
     taskType = 0 #Zero will be our error state
     textResponse = []
     feature1 = processedInfo = num1 = num2 = None
     id = contextObj.newId
     #I will need to add the patterns for the other tasks
-    formatQuery = matchResponse(allFeatures,chatContext.apiKey)
+    formatQuery = matchResponse(allFeatures,contextObj.apiKey)
     if(len(contextObj.responses) <= 0):
         parsedQuery = formatQuery.queryParser(userInput,contextObj.parsedInfo, 'No messages sent yet', 'No messages sent yet')
     else:
@@ -562,19 +613,24 @@ def processQuery(userInput, contextObj):
                 contextObj.fairFilter = False
 
 
-        textResponse.append('Applying ' + mode +', ' +  str(numEntries) +' '+ chatContext.elementName +' matched')
+        textResponse.append('Applying ' + mode +', ' +  str(numEntries) +' '+ contextObj.elementName +' matched')
     elif matchedQuery == 2 or matchedQuery == 3:
         taskType = matchedQuery
       #Example: "What is the correlation of the target with GRE_Score_v"
       #"What is the correlation of the target with TOEFL_Score_v"
         feature1 = parsedQuery[1]
+        for i in range(len(feature1)):
+            if(feature1[i] not in featureDict['all']):
+                feature1[i] = matchResponse(allFeatures,contextObj.apiKey).reMatchFeature(feature1[i])
         if(set(feature1).issubset((set(featureDict['all'])))):
             contextObj.features = feature1
-            subDf = df[df['id'].isin(chatContext.subsetId)]
-            filtered_df = subDf[subDf['id'].isin(chatContext.newId)]
+            subDf = df[df['id'].isin(contextObj.subsetId)]
+            filtered_df = subDf[subDf['id'].isin(contextObj.newId)]
            # cor = filtered_df[feature1+'_v'].corr(filtered_df[target])
            # textResponse = "The correlation between the target and " + feature1 + ' is ' + str(cor)+'.'
-            textResponse += (genResponse(taskType, filtered_df, feature1, userInput))
+            genResp = genResponse(taskType, filtered_df, feature1, userInput,contextObj)
+            staticResp = genResp[1]
+            textResponse += (genResp[0])
         else:
             textResponse.append("One of your entered features has an error"  + ". Please check the spelling or verify that it is a feature.")
             feature1 = None
@@ -583,29 +639,33 @@ def processQuery(userInput, contextObj):
 
     elif matchedQuery == 4:
         taskType = 4
-        textResponse.append(genResponse(taskType, None, None, userInput))
+        genResp = genResponse(taskType, None, None, userInput,contextObj)
+        staticResp = genResp[1]
+        textResponse.append(genResp[0])
     elif matchedQuery == 5:
         taskType = 5 #Feature attribution stuff
-        subDf = df[df['id'].isin(chatContext.subsetId)]
-        filtered_df = subDf[subDf['id'].isin(chatContext.newId)]
-        textResponse.append(genResponse(taskType, filtered_df, None,userInput))
+        subDf = df[df['id'].isin(contextObj.subsetId)]
+        filtered_df = subDf[subDf['id'].isin(contextObj.newId)]
+        genResp = genResponse(taskType, filtered_df, None,userInput,contextObj)
+        staticResp = genResp[1]
+        textResponse.append(genResp[0])
     elif matchedQuery == 6:
         taskType = contextObj.visType
         trackedName = parsedQuery[1]
         textResponse.append("Tracking message as: " + trackedName)
-        chatContext.trackedResponses[trackedName] = len(contextObj.responses) - 1
+        contextObj.trackedResponses[trackedName] = len(contextObj.responses) - 1
     elif matchedQuery == 7:
         isTrackedVis = True
         trackedName = parsedQuery[1]
-        if trackedName in chatContext.trackedResponses.keys():
-            oldResponse = contextObj.responses[chatContext.trackedResponses[trackedName]]
+        if trackedName in contextObj.trackedResponses.keys():
+            oldResponse = contextObj.responses[contextObj.trackedResponses[trackedName]]
             taskType = oldResponse.visType
             feature1 = oldResponse.oldParse[0]
             if(feature1):
                 contextObj.features = feature1
-            subDf = df[df['id'].isin(chatContext.subsetId)]
-            filtered_df = subDf[subDf['id'].isin(chatContext.newId)]
-            textResponse = textResponse + ["Old response is: " ]+ oldResponse.old + ['New Response is:'] + genResponse(taskType, filtered_df,feature1,userInput)
+            subDf = df[df['id'].isin(contextObj.subsetId)]
+            filtered_df = subDf[subDf['id'].isin(contextObj.newId)]
+            textResponse = textResponse + ["Old evaluation is: " ]+ oldResponse.oldStatic + ['New evaluation is:'] + genResponse(taskType, filtered_df,feature1,userInput,contextObj)[1]
         else:
             taskType = -1
             textResponse =  textResponse + ['There is no tracked input named: ' + trackedName +', please check your spelling or enter a valid tracked response']
@@ -628,17 +688,16 @@ def processQuery(userInput, contextObj):
 
                 id = np.intersect1d(idList, contextObj.subsetId).tolist()
                 numEntries = str(len(id))
-            textResponse.append('Applying ' + mode +', ' +  str(numEntries) +' '+ chatContext.elementName +' matched')
+            textResponse.append('Applying ' + mode +', ' +  str(numEntries) +' '+ contextObj.elementName +' matched')
         else:
             textResponse.append('Error, theere is no categorical feature: ' + col + ' please double check your query!')
     elif matchedQuery == 9:
         taskType = 6
-        textResponse = genResponse(taskType, df, None,userInput)
+        textResponse = genResponse(taskType, df, None,userInput,contextObj)[0]
         if(contextObj.visType != 0):
             taskType = contextObj.visType
         else:
             taskType = -1
-        #We might be better off having a system where it keeps in mind the last task type or something idk
     elif matchedQuery == 10:
         topNum = int(parsedQuery[1])
         if(contextObj.visType != 0):
@@ -650,7 +709,7 @@ def processQuery(userInput, contextObj):
         if(topNum > len(subDf)):
             textResponse.append('Selection of top ' + str(topNum) + ' is too big, selecting top ' + str(len(subDf)) + ' instead.')
             topNum = len(subDf)
-        textResponse.append('Getting top ' + str(topNum) + ' ' + chatContext.elementName)
+        textResponse.append('Getting top ' + str(topNum) + ' ' + contextObj.elementName)
         suggestedCutoff = suggest_cutoff(topNum,subDf['y'].to_numpy())
         if(suggestedCutoff != None):
             textResponse += suggestedCutoff
@@ -678,14 +737,14 @@ def processQuery(userInput, contextObj):
             else:
                 id = np.intersect1d(idList, contextObj.subsetId).tolist()
                 numEntries = str(len(id))
-            textResponse.append('Applying ' + mode +', ' +  str(numEntries) +' '+ chatContext.elementName +' matched')
+            textResponse.append('Applying ' + mode +', ' +  str(numEntries) +' '+ contextObj.elementName +' matched')
     elif matchedQuery == 12:
         feature1 = parsedQuery[1]
         taskType = 7
         if(contextObj.fairFilter):
-            subDf = df[df['id'].isin(chatContext.subsetId)]
-            subDf['selection'] = subDf['id'].apply(lambda x: 'selected' if x in chatContext.newId else 'unselected')
-            textResponse = genResponse(taskType,subDf,feature1,userInput)
+            subDf = df[df['id'].isin(contextObj.subsetId)]
+            subDf['selection'] = subDf['id'].apply(lambda x: 'selected' if x in contextObj.newId else 'unselected')
+            textResponse = genResponse(taskType,subDf,feature1,userInput,contextObj)[0]
         else:
             textResponse = ['Invalid Request. Fairness can only be calculated using filters involving the target.']
             taskType = 0
@@ -696,8 +755,8 @@ def processQuery(userInput, contextObj):
             taskType = -1
         feature1 = parsedQuery[1]
         if(contextObj.fairFilter):
-            subDf = df[df['id'].isin(chatContext.subsetId)]
-            subDf['selection'] = subDf['id'].apply(lambda x: 'selected' if x in chatContext.newId else 'unselected')
+            subDf = df[df['id'].isin(contextObj.subsetId)]
+            subDf['selection'] = subDf['id'].apply(lambda x: 'selected' if x in contextObj.newId else 'unselected')
             textResponse = ['Suggested cutoff point is top '  + str(suggestFairness(feature1,subDf))]
         else:
             textResponse = ['Invalid Request. Fairness can only be calculated using filters involving the target.']
@@ -717,7 +776,7 @@ def processQuery(userInput, contextObj):
         contextObj.trackedName = trackedName
         contextObj.parsedInfo = parsedInfo
         contextObj.visType = taskType
-        response = Response(id, oldResponse, textResponse, taskType, parsedInfo,userInput)
+        response = Response(id, oldResponse, textResponse, taskType, parsedInfo,userInput,staticResp)
         contextObj.responses.append(response)
         return contextObj
     else:
@@ -728,26 +787,31 @@ def processQuery(userInput, contextObj):
      Output("user-input", "value"),  # Reset user input
      Output('chat-history', 'data'),
      Output('features', 'data'),
+     Output("submit-button", "n_clicks"),
+     Output("keyboard", "n_keyups"),
+     Output("chat-context", "data",allow_duplicate=True),
 
      ], 
     [Input("submit-button", "n_clicks"),
      Input("keyboard", "n_keyups"),
      ],
     [State("user-input", "value"),
-     State('chat-history', 'data')],
+     State('chat-history', 'data'),
+     State("chat-context",'data')],
      running=[(Output("user-input", "disabled"), True, False),
               (Output("keyboard", "disabled"), True, False),
               (Output("submit-button", "disabled"), True, False),
               (Output("submitIcon", "src"), loadingIcon, arrowIcon)],
+              
+    prevent_initial_call=True
 )
 
-def update_chat(n_clicks, n_keyups, user_input, chat_history):
+def update_chat(n_clicks, n_keyups, user_input, chat_history, chatContext):
     features = []
     if (n_clicks > 0 or n_keyups > 0) and user_input:
-        # Append the user's message to the chat history
-        # Empty user input
+        thawedChatContext = jsonpickle.decode(chatContext)
         chat_history.append({'sender': 'user', 'message': [user_input]})
-        currContext = processQuery(user_input,chatContext)
+        currContext = processQuery(user_input,thawedChatContext)
 
         if(currContext == None):
             chat_history.append({'sender': 'computer', 'message': ['Error or invalid input, please try again']})
@@ -755,6 +819,9 @@ def update_chat(n_clicks, n_keyups, user_input, chat_history):
             features = currContext.features
             chat_history.append({'sender': 'computer', 'message': currContext.responses[len(currContext.responses)-1].new})
         user_input = ""
+        n_clicks = 0
+        n_keyups = 0
+        frozenContext = jsonpickle.encode(currContext)
 
     chat_output = [
         dbc.Card(
@@ -787,14 +854,19 @@ def update_chat(n_clicks, n_keyups, user_input, chat_history):
         for i in range(0,len(chat_history))
     ]
         
-    return chat_output, user_input, chat_history,features
+    return chat_output, user_input, chat_history,features,n_clicks, n_keyups, frozenContext
 
 @app.callback(
-    Output("dummy-output", "children"),  # Dummy output
-    [Input("plot", "selectedData")]
+    [Output("dummy-output", "children"),
+     Output('chat-context','data',allow_duplicate=True)],  # Dummy output
+    [Input("plot", "selectedData")],
+    State('chat-context','data')
+    ,
+    prevent_initial_call=True
 )
-def display_selected_data(selected_data):
+def display_selected_data(selected_data,chatContext):
     if selected_data:
+        chatContext = jsonpickle.decode(chatContext)
         points = selected_data["points"]
         if points is not None and len(points) > 0:
             pointDf = pd.json_normalize(points)
@@ -805,9 +877,11 @@ def display_selected_data(selected_data):
                 chatContext.fairFilter = True
             else:
                 chatContext.fairFilter = False
-            return flatIdList
-    else:
-        return "No points selected."
+            chatContext = jsonpickle.encode(chatContext)
+            return flatIdList,chatContext
+    return no_update,no_update
+    #else:
+        #return "No points selected."
 
 
 @app.callback(
@@ -815,12 +889,17 @@ def display_selected_data(selected_data):
     [Input('chat-history', 'data'),
      Input("dummy-output", "children"),
      Input('features', 'data')],
+     State('chat-context','data')
 )
 
-def update_chart(chat_history,flatIdList, features):
-    #Instead of using df here, we will probably be better of pre-subsetting it. 
+def update_chart(chat_history,flatIdList, features,chatContext):
+    #Instead of using df here, we will probably be better of pre-subsetting it
+    if(chatContext != None):
+        chatContext = jsonpickle.decode(chatContext)
+    else:
+        return blank_fig()
     if(len(chatContext.responses) > 0 ):
-            
+        fig = blank_fig()
         if(chatContext.visType == -1):
             return blank_fig()
         subDf = df[df['id'].isin(chatContext.subsetId)]#subset df
@@ -939,7 +1018,7 @@ def update_chart(chat_history,flatIdList, features):
                 unfiltHis['Selection'] = 'Unselected'
                 newResult = pd.concat([unfiltHis,newHis])
                 fig = px.bar(newResult, x="bins", y = "counts", facet_col="feature", facet_col_spacing=0.04, color="Selection", facet_col_wrap=2,  barmode="overlay", category_orders={ 
-                  "feature": [feature for feature in features]}, color_discrete_sequence=['rgba(44,69,107, 0.2)','#0096FF'], )  
+                  "feature": [feature for feature in features]}, color_discrete_sequence=['rgba(44,69,107, 0.2)','#0096FF'], )
                 fig.update_layout(modebar_remove=['select', 'lasso'])
 
             else:
@@ -1089,4 +1168,4 @@ def update_chart(chat_history,flatIdList, features):
         return blank_fig()
 
 if __name__ == "__main__":
-    app.run_server(debug=False)
+    app.run_server(debug=True)

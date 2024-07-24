@@ -4,7 +4,20 @@ class matchResponse:
     def __init__(self, allFeats, apiKey):
         self.client = OpenAI(api_key=apiKey)
         self.allFeats = allFeats
-
+    def reMatchFeature(self, feature):
+        system_message = f"""You are an expert at spellcorrecting, reformatting, and matching. Your task is to take any feature given to you and attempt to match it to one of these features: {self.allFeats}. Output your response as only the name of the feature you match it with in plaintext as listed.
+                Match to case sensitivity as well
+                If you are not confident about a feature matching to anything, please just say NONE
+           
+             """
+        response = self.client.chat.completions.create(
+            model="gpt-3.5-turbo-0125",
+            messages=[
+                {"role": "system", "content": system_message},
+                {"role": "user", "content": 'You have been provided with a feature by the name of: ' + feature + 'Provide a better match based on the list provided'},
+            ]
+        )
+        return response.choices[0].message.content
     def match_text(self, user_input, recentFeature, recentQuestion, recentResponse):
         system_message = f"""
         
