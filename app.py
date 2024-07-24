@@ -1095,4 +1095,4 @@ def update_chart(chat_history,flatIdList, features):
         return blank_fig()
 
 if __name__ == "__main__":
-    app.run_server(debug=True)
+    app.run_server(debug=False)
