@@ -1,10 +1,11 @@
 class Response:
-    def __init__(self, oldId, old, new, visType, oldParse):
+    def __init__(self, oldId, old, new, visType, oldParse,userQuestion):
         self.oldId = oldId
         self.old = old
         self.new = new
         self.visType = visType
         self.oldParse = oldParse
+        self.userQuestion = userQuestion
 
     def to_dict(self):
         return {

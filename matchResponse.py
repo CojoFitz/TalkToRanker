@@ -1,19 +1,19 @@
 from openai import OpenAI
 import re
 class matchResponse:
-    def __init__(self, allFeats):
-        self.client = OpenAI(api_key="")
+    def __init__(self, allFeats, apiKey):
+        self.client = OpenAI(api_key=apiKey)
         self.allFeats = allFeats
 
-    def match_text(self, user_input, recentFeature):
+    def match_text(self, user_input, recentFeature, recentQuestion, recentResponse):
         system_message = f"""
         
-        Please format my messages to match the following task types as best as possible:
+        You are perfect at formatting messages, please format my messages to match the following task types as best as possible:
 
-        1. "What is the distribution of {{feature}}" - shows the distribution of the data. This one should also work for requests for mean, median, and standard deviation.
+        1. "What is the distribution of {{features}}" - shows the distribution of the data. This one should also work for requests for mean, median, and standard deviation.
         2. "Show me the stability" - shows stability of the data
         3. "What are the most important features" - ranks feature attribution
-        4. "What is the correlation of the target with {{feature}}" - shows correlation between a feature and the target
+        4. "What is the correlation of the target with {{features}}" - shows correlation between a feature and the target
         5. "(Filter or Subset) by {{number}}<{{feature}}<{{number}}" - filter OR subset based on a numerical feature range. You must specify for both the upper and lower bound, no deviations from the format allowed. You must type the one you want to do. Subsetting removes points not in the range, while filtering will just highlight the range.
         6. "(Filter or Subset) the data when {{feature}} is {{value}}" - filter OR subset based on the value of a categorical feature. You must type the one you want to do. Subsetting removes points not in the range, while filtering will just highlight the range.
         7. "Track the previous response as {{name}}" - tracks the previous response and stores its filters
@@ -36,7 +36,20 @@ class matchResponse:
         The previous feature will be {recentFeature}, so keep that in mind for queries that seem to make prior references. 
         
         If the feature that has been typed out is vague, attempt to match it with the features being used in the dataset, which include:
-        {self.allFeats}. 
+        {self.allFeats}.
+
+        The user may also ask follow up questions based on the last message they sent which was: {recentQuestion}
+
+        They received the response: {recentResponse}
+        
+
+        If a user lists off multiple features such as like this:
+        "What is the distribution of apples and oranges"
+        Format it as:
+        "What is the distribution of apples,oranges"
+        Distribution and Correlation support extra features.
+        Extra features mentioned must be in a comma seperated order such as: "feat1,feat2,feat3..." if there is only one feature just format it as: "feat1"
+
 
 
 
@@ -47,6 +60,7 @@ class matchResponse:
         - Do use the available features list to match features correctly.
         - If the user says filter, always filter. If the user says subset, always subset. 
         - If there is not a clear specification of the feature, use the previous feature.
+        - Correctly format extra features
 
         Don'ts:
         - Don't make up responses that don't fit the explicit format.
@@ -102,21 +116,20 @@ class matchResponse:
 
         -User says: "What is the correlation of feature with the target"
         Response: "What is the correlation of income with the target" This response is bad since it does not have the correct order. Always format this as "What is the correlation of the target with feature"
-
     
         """
         response = self.client.chat.completions.create(
             model="gpt-3.5-turbo-0125",
             messages=[
                 {"role": "system", "content": system_message},
-                {"role": "user", "content": user_input}
+                {"role": "user", "content": user_input},
             ]
         )
         return response.choices[0].message.content
-    def queryParser(self,query,parsedInfo):
+    def queryParser(self,query,parsedInfo, lastResp, lastQues):
         p1 = r'(Filter|Subset) by (-?\d+\.?\d*)<(\w+)<(-?\d+\.?\d*)' #Numerical
-        p2 = r"What is the correlation of the target with (\w+)"
-        p3 = r"What is the distribution of (\w+)"
+        p2 = r"What is the correlation of the target with (\w+(?:\s*,\s*\w+)*)"
+        p3 = r"What is the distribution of (\w+(?:\s*,\s*\w+)*)"
         p4 =  r"Show me the stability"
         p5 =  r"What are the most important features"
         p6 = r"Track the previous response as (\w+)"
@@ -135,12 +148,14 @@ class matchResponse:
                 matchData[0] = p+1
                 for i in range(1,len(match.groups())+1):
                     matchData[i] = match.group(i)
+                if(p == 1 or p == 2):
+                    matchData[1] = matchData[1].replace(" ", "")
+                    matchData[1] = matchData[1].split(',')
                 return matchData
         previousFeature = 'NO PREVIOUS FEATURE AVAILABLE'
         if (len(parsedInfo)>0):
             previousFeature = parsedInfo[0]
-        gptParse = self.match_text(query, previousFeature)
-        print(gptParse)
+        gptParse = self.match_text(query, previousFeature, lastQues,lastResp)
         gptParse = gptParse.replace('"', '') #Sometimes it'll add quotation marks to the parse. I am just going to remove them to make things easier
         matchData[5] = gptParse
         matchData[6] = True
@@ -150,5 +165,7 @@ class matchResponse:
                 matchData[0] = p+1
                 for i in range(1,len(match.groups())+1):
                     matchData[i] = match.group(i)
+                if(p == 1 or p == 2):
+                    matchData[1] = matchData[1].split(',')
                 return matchData
         return[-9, None, None, None, None, query, False] #If no match can be made, we will return an error

@@ -70,11 +70,10 @@ def getFeatureList(df):
         allFeats['categorical'] = ['None']
     return allFeats
 
-
 def prepareDF(df, selectionType, showFeatures): 
     #This formats the DF in a way that works best for the graph
     newDf = pd.melt(df, id_vars=['y','id'], var_name='feature', value_name='value')
-    featuresUsed = [showFeatures[0] + '_v', showFeatures[1] + '_v', showFeatures[2] + '_v', showFeatures[3] + '_v']
+    featuresUsed = [feature + "_v" for feature in showFeatures]
     newDf = newDf[newDf['feature'].isin(featuresUsed)]
     newDf['Selection'] = selectionType
     return newDf
