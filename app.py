@@ -1,5 +1,5 @@
 import dash, math, warnings
-from dash import dcc, html, callback, set_props, ctx
+from dash import dcc, html, callback, ctx
 from dash.dependencies import Input, Output, State
 import plotly.express as px
 import dash_bootstrap_components as dbc
@@ -87,12 +87,6 @@ def makeButton(feat, num):
         id ={'role': feat, 'index': num}
     )
     return featureButton
-
-def getButtons(showFeatures):
-    buttons = []
-    for i in range(len(showFeatures)):
-        buttons.append(makeButton(showFeatures[i],i))
-    set_props("buttons", {'children': dbc.Row(buttons)})
 
 
 
