@@ -1168,9 +1168,6 @@ def update_chart(chat_history,flatIdList, features,chatContext):
         return blank_fig()
 
 if __name__ == "__main__":
-    app.enable_dev_tools(
-    dev_tools_ui=True,
-    dev_tools_serve_dev_bundles=True,
-)
-    app.run_server(debug=True)
+
+    app.run_server(debug=False)
 
