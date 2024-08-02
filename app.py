@@ -1,5 +1,6 @@
 import dash, math, warnings,json, jsonpickle, openai
 from dash import dcc, html, callback, no_update
+import dash_cytoscape as cyto
 from dash.dependencies import Input, Output, State
 import plotly.express as px
 import dash_bootstrap_components as dbc
@@ -11,7 +12,7 @@ from helperFunctions import processHistogram,getBins,suggest_cutoff, checkAttrib
 from ContextObject import ContextObject
 from Response import Response
 from matchResponse import matchResponse
-from dash_extensions import Keyboard
+from dash_extensions import Keyboard, Mermaid
 from creativeExplainer import creativeExplainer
 from contextualPredictor import contextualPredictor
 
@@ -33,6 +34,12 @@ figureAb = 'assets/FigureBA.png'
 good = 'assets/good.png'
 error = 'assets/error.png'
 
+distTrack = 'assets/DistTrack.png' #Distribution tracking
+impA = 'assets/importantA.png' #Importance of feature
+StabilityA = 'assets/Stability.png'
+tablePlot = 'assets/tablePlot.png'
+CorrelationA = 'assets/Correlation.png'
+SubsetA = 'assets/Subset.png'
 
 
 adm = 'admission_all.csv'
@@ -86,6 +93,121 @@ def blank_fig():
     return fig
 
 
+def actionLine(message):
+    return html.Div([
+                    html.Img(src="https://cdn-icons-png.flaticon.com/512/3682/3682321.png",style={"width": "15px", "height": "15px",'display': 'inline-block', 'vertical-align': 'center'}),
+                    html.P(message, style={'display': 'inline-block', 'vertical-align': 'top', 'margin-left': '10px'})
+                ])
+
+def splitDisplay():
+    return html.Div(
+    style={'display': 'flex', 'align-items': 'center', 'justify-content': 'center'},  # Flexbox to align items side by side and center them
+    children=[
+        html.Video(
+        src='/assets/select.mp4',  # Path to your video file
+        controls=False,  # Disable video controls
+        autoPlay=True,  # Automatically start the video
+        muted = True,
+        loop=True,  # Loop the video
+         style={'margin-left': '50px', 'margin-right': '50px', 'height':'50vh', 'width':'40vw'}),  # Image with some right margin
+        html.Div(
+            children=[
+                html.H1("Try out the following messages and actions!"),
+                actionLine('Show the correlation'),         
+                actionLine('Show the correlation'),         
+                actionLine('Show the correlation'),         
+                actionLine('Show the correlation'),         
+                actionLine('Show the correlation'),         
+
+            ]
+        ),
+    ]
+    )
+
+
+test =     html.H5(
+        'Your Header Text Here',
+        style={
+            'backgroundColor': 'rgba(211, 211, 211, 0.5)',  # light grey with 50% opacity
+            'padding': '10px',
+            'textAlign': 'center'
+        }
+    )
+
+carousel = dbc.Carousel(
+    items=[
+        {
+
+ 
+            "key": "1",
+            "src": distTrack,
+            "header": "Example of tracking the distribution ",
+                        "captionClassName" : "p-0 bg-dark border text-light bg-opacity-75 position-static"
+
+        },
+        {
+            "key": "2",
+            "src": impA,
+            "header": "Example of showing the feature attribution",
+                        "captionClassName" :"p-0 bg-dark border text-light bg-opacity-75 position-static"
+        },
+        {
+            "key": "3",
+            "src": StabilityA,
+            "header": "Example of the stability being shown",
+                        "captionClassName" :"p-0 bg-dark border text-light bg-opacity-75 position-static"
+        },
+                {
+            "key": "4",
+            "src": tablePlot,
+            "header": "User is shown a table of the raw data",
+                        "captionClassName" :"p-0 bg-dark border text-light bg-opacity-75 position-static"
+        },
+
+        {
+            "key": "5",
+            "src": SubsetA,
+            "header": "User subsets the dataset",
+                        "captionClassName" :"p-0 bg-dark border text-light bg-opacity-75 position-static"
+        },
+                {
+            "key": "6",
+            "src": CorrelationA,
+            "header": "User makes selection on correlation graph, the rank updates based on the selection",
+                        "captionClassName" :"p-0 bg-dark border text-light bg-opacity-75 position-static"
+        }
+    ],
+        variant="dark",                style={
+                    'margin-bottom': '20px',
+                    'margin-left': '20%',
+                    'margin-right': '20%',
+                },
+    indicators=False
+
+)
+
+
+modal = html.Div(
+    [
+        dbc.Modal(
+            [
+                dbc.ModalHeader(dbc.ModalTitle("Module", id = "modal-header")), #Have the module name here
+                dbc.ModalBody("Text about module goes here", id = "modal-body"), #Have a dictionary generate the text based on module name
+                dbc.ModalFooter(
+                    dbc.Button(
+                        "Close", id="close", className="ms-auto", n_clicks=0
+                    )
+                ),
+            ],
+            id="modal",
+            scrollable=True,
+            is_open=False,
+            size = "xl"
+        ),
+    ]
+)
+
+
 
 
 buttonsUsed = []
@@ -94,6 +216,7 @@ buttonsUsed = []
 def tableTest():
     size = '500px'
     return html.Div([
+
     html.Table([
         # Table header
         html.Thead(
@@ -250,6 +373,49 @@ def textSection(header, body):
 
 
 
+def headerSubhead(header, body):
+    return html.Div([
+        html.H1(
+            header,
+            style={
+                'text-align': 'center', 
+                'margin-top': '40px'
+            }
+        ),
+        html.H2(
+            body,
+            style={
+                'text-align': 'center', 
+                'font-style': 'italic', 
+                'margin-top': '10px'
+            }
+        )
+    ])
+def modalFormatText(body):
+    text = html.Div([
+        *[
+            html.Div(
+                html.P(
+                    paragraph,
+                    style={
+                        'font-size': '20px'
+                    }
+                ),
+                style={
+                    'display': 'flex',
+                    'justify-content': 'center',
+                    'align-items': 'center',
+                    'margin-bottom': '20px',
+                    'margin-left': '3%',
+                    'margin-right': '3%',
+                }
+            )
+            for paragraph in body
+        ]
+    ])
+    return text
+
+
 def quoteBox(text_list):
     return html.Div(
         children=[
@@ -284,8 +450,13 @@ def sources():
 ]),
 
 def exampleQueries():
-    return html.Div([    
-    html.P("1. \"What is the distribution of {{features}}\" - Shows the distribution of the data."),
+    return html.Div([ 
+        html.P('To provide some inspiration for utilizing this interface, we have provided some query templates for you to use. You do not have to type these out verbatim in order for the interface to work. These serve as a baseline for what is possible in the interface, and good ways of formatting requests for specific interactions:'),
+        dbc.Accordion(
+        [
+            dbc.AccordionItem(
+                [
+html.P("1. \"What is the distribution of {{features}}\" - Shows the distribution of the data."),
     
     html.P("2. \"Show me the stability\" - Shows stability of the data"),
     
@@ -309,12 +480,22 @@ def exampleQueries():
     
     html.P("12. \"Show me the fairness of the current filter on {{feature}}\" Shows the fairness of the given feature"),
     
-    html.P("13. \"Suggest a better cutoff for fairness on {{feature}}\" Suggests a better selection for fairness of the given feature")
+    html.P("13. \"Suggest a better cutoff for fairness on {{feature}}\" Suggests a better selection for fairness of the given feature"),
+    html.P("14. \"Show the rankings of the raw data\" Will display the raw data as a table with rankings")
+
+                ],
+                title="Click on me to see example queries",
+            ),
+        ]
+        ),
+    
+          
+
 ])
 
 
 introText = [""" Algorithmic rankers prove to be very useful in a multitude of different areas, as they assist greatly in the processes of making decisions. While those with data literacy may view ranker models as intuitive and easy to analyze, there is undeniably some level of knowledge required for one to obtain the answers to the questions they may have. As such, the average person may find it hard to utilize tools relating to rankings to the fullest extent. Our interface aims to make the process of utilizing rankers more accessible and intuitive. This is accomplished by leveraging, explainable artificial intelligence and visualizations to allow for rankers to be more accessible. """]
-introHeader = 'Abstract'
+introHeader = 'Talk To Ranker: conversational interface for ranking-based decision-making'
 
 
 
@@ -323,9 +504,8 @@ overviewHeader = 'General Overview'
 overviewBody = [
     """Our interface is a hybrid conversational and visualization interface,  which generates visual and textual representations relevant to questions about the dataset. The interface is split into two views, the chat view (a) and visualization view (b). """,
     html.Img(src=figureAb),
-    """As you can see in the chat view, the user is able to ask questions about a dataset pertaining to university admissions. After the user asks a question two things occur, a textual response is generated in the chat view as well as a visual response in the visualization view. The exact process of how this occurs will be elaborated upon further in other sections. """,
-    """Our interface is split into four major components being that of the Parser, Context Provider, Textual Explainer, and Visual Explainer. These components each play critical roles in shaping the interface's capabilities of delivering cohesive and informative information to the user. The following diagram highlights a overview of how they all interact with each other: """,
-    html.Img(src=diagramImage)
+    """As you can see in the chat view, the user is able to ask questions about a dataset pertaining to university admissions. After the user asks a question two things occur, a textual response is generated in the chat view as well as a visual response in the visualization view. The exact process of how this occurs is described in the interactive flow chart.""",
+    """Our interface is split into four major components being that of the Parser, Context Provider, Textual Explainer, and Visual Explainer. These components each play critical roles in shaping the interface's capabilities of delivering cohesive and informative information to the user. The following interactive diagram provides an overview of how the components all interact with each other: """,
 ]
 
 parserHeader = 'Parser'
@@ -334,7 +514,7 @@ parserText = [
 """One usage of LLMs in visualization interfaces is to generate executable code for visualizations. In an interface called Chat2Vis Paula and Susnjak demonstrated the capability of various LLMs to generate executable python code for the matplotlib library to create visualizations based on textual input [2]. This method was not selected to be used in our interface as there were some issues found with it. The code generated by the LLM was not always reliable, through testing this technique there were often times where the code would not execute or displayed wrong information. Additionally, with prompt engineering techniques that allow for instructions to be bypassed [3], a user can use this to inject whatever code they want. Furthermore, the unreliability and static nature of the visualizations makes the implementation of interactivity with the visualizations difficult to implement within reason.""",
 """We took inspiration from similar works [4,5] creating a question bank containing formatted questions known as a gold parse. The gold parse is an idealized format for different question types to be in, which in turn user inputs can be matched to. The following is an example of some of the gold parses in our question bank:""",
 tableTest(),
-"""The interface works by checking if the user’s input matches to the gold parse, if it does not it will use an LLM such as GPT 3.5 [1] to format and match the user’s input to match a gold parse. For example if a user types “I am very curious to know the correlation between the target and age”, the LLM will re-format their input as "What is the correlation of age with target". After the input is made to be in the format of the gold parse, it will then be parsed using a list of regular expressions for different query types. Each query type has different parameters, such as features and numbers, of which will be stored and the type of query will be stored as a numerical value. At this point, the user’s input is matched with a golden parse and all of the information necessary to generate a response and visualization has been parsed. The information obtained from the parser is then subsequently passed off to the context provider."""
+"""The interface works by checking if the user’s input matches to the gold parse, if it does not it will use an LLM such as GPT 3.5 [1] to format and match the user’s input to match a gold parse. For example if a user types “I am very curious to know the correlation between the target and age”, the LLM will re-format their input as "What is the correlation of age with target". After the input is made to be in the format of the gold parse, it will then be parsed using a list of regular expressions for different query types. Each query type has different parameters, such as features and numbers, of which will be stored and the type of query will be stored as a numerical value. At this point, the user’s input is matched with a gold parse and all of the information necessary to generate a response and visualization has been parsed. The information obtained from the parser is then subsequently passed off to the context provider."""
 ]
 
 contextHeader = 'Context Provider'
@@ -396,32 +576,153 @@ app.layout = html.Div([
 
 html.Div(
     children=[
-        html.H1(
-            "Introduction",
+    headerSubhead('Talk To Ranker','A conversational interface for ranking-based decision-making'),
+    textSection('',introText+overviewBody),
+    html.H1(
+            "Click on each yellow module to learn more!",
             style={
                 'text-align': 'center', 'margin-top' : '40px'}
         ),
-        html.Div(
-            """ Algorithmic rankers prove to be very useful in a multitude of different areas, as they assist greatly in the processes of making decisions. While those with data literacy may view ranker models as intuitive and easy to analyze, there is undeniably some level of knowledge required for one to obtain the answers to the questions they may have. As such, the average person may find it hard to utilize tools relating to rankings to the fullest extent. Our interface aims to make the process of utilizing rankers more accessible and intuitive. This is accomplished by leveraging, explainable artificial intelligence and visualizations to allow for rankers to be more accessible. """,
-            style={
-                'display': 'flex',
-                'justify-content': 'center',
-                'align-items': 'center',
-                'margin-bottom' : '90px',
-                'margin-left' : '20%',
-                'margin-right' : '20%',
-                'font-size' : '20px'
+        modal,
+        cyto.Cytoscape(
+        id='cytoscape-flowchart',
+        layout={'name': 'preset',
+                },
+        style={'width': '95vw', 'height': '500px'},
+        elements=[
+            {'data': {'id': 'VizViewLabel', 'label': 'Visualization View'}, 'position': {'x': 200, 'y': 325},'classes': 'unclick whiteNode'},
+
+            {'data': {'id': 'UserLabel', 'label': 'User'}, 'position': {'x': 0, 'y': 200},'classes': 'unclick whiteNode'},
+            {'data': {'id': 'ParserLabel', 'label': 'Parser'}, 'position': {'x': 200, 'y': 200}},
+            {'data': {'id': 'VisualLabel', 'label': 'Visual Explainer'}, 'position': {'x': 400, 'y': 200}},
+
+            {'data': {'id': 'chat', 'label': 'Chat View'}, 'position': {'x': 0, 'y': 75},'classes': 'unclick whiteNode'},
+            {'data': {'id': 'textual', 'label': 'Textual Explainer'}, 'position': {'x': 200, 'y': 75}},
+            {'data': {'id': 'ContextProv', 'label': 'Contextual Provider'}, 'position': {'x': 400, 'y': 75}},
+            {'data': {'id': 'dataView', 'label': 'Data'}, 'position': {'x': 600, 'y': 75},'classes': 'unclick whiteNode'},
+
+
+
+
+            {'data': {'source': 'dataView', 'target': 'ContextProv','label': 'Send Dataset'}, 'classes' : 'top'},
+            {'data': {'source': 'ContextProv', 'target': 'textual','label': 'Send parsed information and contextualUse'},'classes': 'double top'},
+            {'data': {'source': 'textual', 'target': 'chat','label': 'display textual response'}, 'classes' : 'top'},
+
+            {'data': {'source': 'chat', 'target': 'UserLabel', 'label': 'User is provided with a response'}, 'classes' : 'rightSide'},
+
+            {'data': {'source': 'UserLabel', 'target': 'VizViewLabel','label': 'User Makes selection'}, 'classes' : ' leftSide'},
+            
+            {'data': {'source': 'UserLabel', 'target': 'ParserLabel', 'label': 'User asks a question'}, 'classes' : 'top'},
+            {'data': {'source': 'ParserLabel', 'target': 'ContextProv','label' : 'Send parsed information'}, 'classes': ' softLeft top'},
+            {'data': {'source': 'VisualLabel', 'target': 'ContextProv', 'label' : 'Get and Send IDs and Task Type'},'classes': 'double softRight'},
+            {'data': {'source': 'VisualLabel', 'target': 'VizViewLabel', 'label' : 'Send and receive selected IDs, and update the visualization'},'classes': 'double rightSide bottom'},
+
+
+
+
+        ],
+                        userZoomingEnabled=False,
+                        userPanningEnabled=False,
+                        autolock=True,
+                        stylesheet=[
+        # Group selectors
+        {
+            'selector': 'node',
+            'style': {
+                'content': 'data(label)',
+                'text-halign':'center',
+                'text-valign':'center',
+                'font-size': '12px',
+                'width':'80px',
+                'height':'50px',
+                'shape':'square',
+                'text-max-width' : '70px',
+                'text-wrap':'wrap',
+                'background-color': '#feff9c',
+                'border-width' : '1px',
+                'border-color' : 'black'
 
             }
-        )
-    ,
-    textSection(overviewHeader,overviewBody),
-    textSection(parserHeader,parserText),
-    textSection(contextHeader,contextBody),
-    textSection(textualHeader, textualBody),
-    textSection(visualHeader, visualBody),
-    textSection('Sources',[sources()]),
+        },
+                    {
+                'selector': 'edge',
+                'style': {
+                    'content': 'data(label)',
+                    'curve-style': 'bezier',
+                    'font-size': '10px',
+                    'text-max-width' : '120px',
+                                    'text-wrap':'wrap',
+
+                    'target-arrow-color': 'black',
+                    'target-arrow-shape': 'triangle',
+                    'line-color': 'black',
+                }
+            }, 
+            {
+                'selector': '.double',
+                'style': {
+                    'target-arrow-color': 'black',
+                    'target-arrow-shape': 'triangle',
+                    'line-color': 'black',
+                    'source-arrow-color': 'black',
+                    'source-arrow-shape': 'triangle',
+                }
+            },
+            {
+                'selector': '.top',
+                'style': {
+                       'text-margin-y' : '-12px'
+                }
+            },
+      {                      'selector': '.bottom',
+                'style': {
+                       'text-margin-y' : '12px'
+                },},
+            {
+                'selector': '.leftSide',
+                'style': {
+                       'text-margin-x' : '-80px'
+                }
+            },            {
+                'selector': '.softRight',
+                'style': {
+                       'text-margin-x' : '60px'
+                }
+            }, {
+                'selector': '.softLeft',
+                'style': {
+                       'text-margin-x' : '-50px'
+                }
+            },
+                        {
+                'selector': '.rightSide',
+                'style': {
+                       'text-margin-x' : '70px'
+                }
+            },
+            {
+                'selector': '.unclick',
+                'style': {
+                       'events' : 'no'
+                }
+            },
+
+            {
+                'selector': '.whiteNode',
+                'style': {
+                'background-color': '#d3d3d3',
+                }
+            }
+            
+        ]
+
+
+    ),
+    textSection('Example interactions', ['The following  gallery shows off just some of the numerous interactions that our interface is capable of handling. Feel free to check them out for yourself here: ']),
+    carousel,
     textSection('Example Queries',[exampleQueries()]),
+    textSection('Sources',[sources()]),
+
     textSection('Try the interface out for yourself: ',''),
     textSection('',''),
 
@@ -486,6 +787,8 @@ html.Div(["Enter OpenAi Api Key to start:",
     prevent_initial_call=True
 )
 
+
+
 def createContext(n_clicks, value):
     if(value is not None):
         apiKey = value
@@ -508,6 +811,28 @@ def createContext(n_clicks, value):
             pickledChatContext = jsonpickle.encode(chatContext)
             return pickledChatContext,icon,False,False
     return None, error, True, True
+
+textDict ={
+    'Contextual Provider' : modalFormatText(contextBody),
+    'Visual Explainer' : modalFormatText(visualBody),
+    'Parser' : modalFormatText(parserText),
+    'Textual Explainer' : modalFormatText(textualBody)
+}
+        
+@app.callback(
+   [ Output("modal", "is_open"),
+    Output("modal-header", "children"),
+    Output('cytoscape-flowchart', 'tapNodeData'),
+    Output('modal-body','children')
+    
+    ],
+    [Input('cytoscape-flowchart', 'tapNodeData'), Input("close", "n_clicks")],
+    [State("modal", "is_open")],
+)
+def toggle_modal(n1, n2, is_open):
+    if n1 or n2:
+        return not is_open,n1['label'], None, textDict[n1['label']]
+    return is_open,n1, None, None
 
 numMessages = 0
 
@@ -599,6 +924,9 @@ def processQuery(userInput, contextObj):
         num1 = parsedQuery[2]
         feature1 = parsedQuery[3]
         num2 = parsedQuery[4]
+
+        if(feature1 not in featureDict['all']):
+            feature1 = matchResponse(allFeatures,contextObj.apiKey).reMatchFeature(feature1, contextObj.scoreName)
         idList = df[(df[feature1+'_v'] > float(num1)) & (df[feature1+'_v'] < float(num2))]['id'].tolist()
         if(mode == "Subset"):
             contextObj.subsetId = idList 
@@ -621,7 +949,7 @@ def processQuery(userInput, contextObj):
         feature1 = parsedQuery[1]
         for i in range(len(feature1)):
             if(feature1[i] not in featureDict['all']):
-                feature1[i] = matchResponse(allFeatures,contextObj.apiKey).reMatchFeature(feature1[i])
+                feature1[i] = matchResponse(allFeatures,contextObj.apiKey).reMatchFeature(feature1[i],contextObj.scoreName)
         if(set(feature1).issubset((set(featureDict['all'])))):
             contextObj.features = feature1
             subDf = df[df['id'].isin(contextObj.subsetId)]
@@ -760,7 +1088,9 @@ def processQuery(userInput, contextObj):
             textResponse = ['Suggested cutoff point is top '  + str(suggestFairness(feature1,subDf))]
         else:
             textResponse = ['Invalid Request. Fairness can only be calculated using filters involving the target.']
-
+    elif matchedQuery == 14:
+        taskType = 8
+        textResponse = ['Showing the table']
     if(taskType != 0): #This is to update context object given a successful parse
         parsedInfo = []
         oldResponse = "" 
@@ -1152,16 +1482,37 @@ def update_chart(chat_history,flatIdList, features,chatContext):
                 fig = px.bar(combinedDf, x="category", y="ratio", orientation='v', animation_frame="oldNew")
                 fig.update_yaxes(range=[0, 1])
             fig.update_layout(modebar_remove=['select', 'lasso'])
-
-        fig.update_layout(showlegend=False)
-       # fig.update_xaxes(range=[0, None])
-       # fig.update_yaxes(range=[0, None])S
-        fig.update_yaxes(showticklabels=True, row=1)
-        fig.update_yaxes(showticklabels=True, row=2)
-        fig.update_xaxes(showticklabels=True, row=1)
-        fig.update_xaxes(showticklabels=True, row=2)
-        fig.update_yaxes(matches=None) 
-        fig.update_xaxes(matches=None)
+        elif(chatContext.visType == 8):
+            rankDf = subDf.copy() 
+            rankDf['Selection'] = 'unselected'
+            rankDf.loc[rankDf['id'].isin(chatContext.newId), 'Selection'] = 'selected'
+            rankDf = rankDf[rankDf.Selection != 'unselected']
+            rankDf['rank'] = rankDf['y'].rank(ascending=False, method='first')
+            rankDf = rankDf.drop(columns=['Selection','id'])
+            rankDf = rankDf.loc[:, ~rankDf.columns.str.endswith('_a')]
+            rankDf.columns = rankDf.columns.str.replace('_v$', '', regex=True)
+            rankDf.rename(columns={'y': chatContext.scoreName}, inplace=True)
+            rankDf = rankDf.sort_values(by = 'rank') 
+            rankDf = rankDf[['rank'] + [x for x in rankDf.columns if x != 'rank']]
+            fig = go.Figure(data=[go.Table(
+            header=dict(values=list(rankDf.columns),
+                        fill_color='#003459',
+                        font=dict(color='white'),
+                        align='left'),
+            cells=dict(values=rankDf.transpose().values.tolist(),
+               fill_color='#d3d3d3',
+               align='left'))
+            ])
+        if(chatContext.visType != 8):
+            fig.update_layout(showlegend=False)
+        # fig.update_xaxes(range=[0, None])
+        # fig.update_yaxes(range=[0, None])S
+            fig.update_yaxes(showticklabels=True, row=1)
+            fig.update_yaxes(showticklabels=True, row=2)
+            fig.update_xaxes(showticklabels=True, row=1)
+            fig.update_xaxes(showticklabels=True, row=2)
+            fig.update_yaxes(matches=None) 
+            fig.update_xaxes(matches=None)
 
         return fig
     else:
@@ -1169,5 +1520,5 @@ def update_chart(chat_history,flatIdList, features,chatContext):
 
 if __name__ == "__main__":
 
-    app.run_server(debug=False)
+    app.run_server(debug=True)
 

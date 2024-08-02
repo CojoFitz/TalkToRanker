@@ -4,7 +4,8 @@ class matchResponse:
     def __init__(self, allFeats, apiKey):
         self.client = OpenAI(api_key=apiKey)
         self.allFeats = allFeats
-    def reMatchFeature(self, feature):
+    def reMatchFeature(self, feature, contextScore):
+        self.allFeats += contextScore
         system_message = f"""You are an expert at spellcorrecting, reformatting, and matching. Your task is to take any feature given to you and attempt to match it to one of these features: {self.allFeats}. Output your response as only the name of the feature you match it with in plaintext as listed.
                 Match to case sensitivity as well
                 If you are not confident about a feature matching to anything, please just say NONE
@@ -17,7 +18,10 @@ class matchResponse:
                 {"role": "user", "content": 'You have been provided with a feature by the name of: ' + feature + 'Provide a better match based on the list provided'},
             ]
         )
-        return response.choices[0].message.content
+        newFeat = response.choices[0].message.content
+        if(feature == contextScore or newFeat == contextScore):
+            return 'y'
+        return newFeat
     def match_text(self, user_input, recentFeature, recentQuestion, recentResponse):
         system_message = f"""
         
@@ -36,6 +40,8 @@ class matchResponse:
         11. "(Filter or Subset) the data such that {{feature}} is the most important feature" This creates a filter or subset to make sure that the columns selected are the most important feature.
         12. "Show me the fairness of the current filter on {{feature}}" Shows the fairness of the given feature
         13. "Suggest a better cutoff for fairness on {{feature}}" Suggests a better selection fo fairness of the given feature
+        14. "Show the rankings of the raw data" Will display the data with rows and rankings. 
+
 
         For instance, if I say "I would like to filter apples within the range of 30 and 90," match it to "Filter by 30<apple<90."
 
@@ -109,6 +115,11 @@ class matchResponse:
         -User says: "What is the correlation of feature with the target"
         Response: "What is the correlation of the target with feature" 
 
+        -User says: "Show me the raw data"
+        Response: "Show the rankings of the raw data" 
+
+        -User says: "Show me the data as a table"
+        Response: "Show the rankings of the raw data" 
 
         Bad Examples:
         - User says: "I do not want apples that are older than 5 years"
@@ -153,7 +164,8 @@ class matchResponse:
         p11 = r"(Filter|Subset) the data such that (\w+) is the most important feature" #important feature
         p12 = r"Show me the fairness of the current filter on (\w+)"
         p13 = r"Suggest a better cutoff for fairness for feature (\w+)"
-        patterns = [p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12,p13]
+        p14 = r"Show the rankings of the raw data"
+        patterns = [p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12,p13,p14]
         matchData = [-9, None, None, None, None, query, False] #[Task, Capture1, Capture2, Capture3, Capture4, query, gptParse]
         for p in range(0, len(patterns)):
             match = re.match(patterns[p], query)
