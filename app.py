@@ -848,22 +848,24 @@ def genResponse(taskType, df, feature1,userInput,chatContext):
         genResp = 'Query not understood'
     elif(taskType == 2):
         genResp = []
+        staticResp = []
         for feat in feature1:
             cor = round(df[feat+'_v'].corr(df[target]),3)
-            staticResp = ["The correlation between the target and " + feat + ' is ' + str(cor)+'.'] #Correlation
+            staticResp += ["The correlation between the target and " + feat + ' is ' + str(cor)+'.'] #Correlation
         
         staticInput = ' '.join(staticResp)
         genResp = [explainer.explainGen(userInput,staticInput)]
 
     elif(taskType == 3):
         genResp = []
+        staticResp = []
         for feat in feature1:
             std = round(df[feat+'_v'].std(),3)
             mean = round(df[feat+'_v'].mean(),3)
             median = round(df[feat+'_v'].median(),3)
-            staticResp = ['Information about feature: ' + feat, 'Standard Deviation: ' + str(std), 'Mean: ' + str(mean), 'Median: ' + str(median)]
-            staticInput = ' '.join(staticResp)
-            genResp = [explainer.explainGen(userInput,staticInput)]
+            staticResp += ['Information about feature: ' + feat, 'Standard Deviation: ' + str(std), 'Mean: ' + str(mean), 'Median: ' + str(median)]
+        staticInput = ' '.join(staticResp)
+        genResp = [explainer.explainGen(userInput,staticInput)]
 
     elif(taskType == 4):
         genResp = 'Displaying the stability (NOTE DO NOT ANSWER ABOUT HOW STABLE THE DATASET IS, AS YOU DO NOT HAVE THAT INFORMATION GIVEN TO YOU. You can answer supplementary questions, but nothing specific to the dataset. If you do not know how to respond, just say you are displaying the stability)' #Stability Response
@@ -1520,5 +1522,5 @@ def update_chart(chat_history,flatIdList, features,chatContext):
 
 if __name__ == "__main__":
 
-    app.run_server(debug=True)
+    app.run_server(debug=False)
 

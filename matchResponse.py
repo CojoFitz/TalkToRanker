@@ -68,6 +68,7 @@ class matchResponse:
         "What is the distribution of apples,oranges"
         Distribution and Correlation support extra features.
         Extra features mentioned must be in a comma seperated order such as: "feat1,feat2,feat3..." if there is only one feature just format it as: "feat1"
+        
 
 
 
@@ -79,7 +80,7 @@ class matchResponse:
         - Do use the available features list to match features correctly.
         - If the user says filter, always filter. If the user says subset, always subset. 
         - If there is not a clear specification of the feature, use the previous feature.
-        - Correctly format extra features
+        - Correctly format extra features in the comma seperated order
 
         Don'ts:
         - Don't make up responses that don't fit the explicit format.
@@ -108,7 +109,13 @@ class matchResponse:
 
         - User says: "I want to track this message"
         Response: "Track the previous response as tracked"
+
+        - User says: "What is the correlation of the target with feature1 and feature2"
+        Response: "What is the correlation of the target with feature1,feature2"
         
+        - User says: "What is the correlation of the target with feature1, feature2, and feature3"
+        Response: "What is the correlation of the target with feature1,feature2,feature3"
+
         -User says: "I want to know the distribution of feature"
         Response: What is the distribution of feature
 
@@ -168,7 +175,7 @@ class matchResponse:
         patterns = [p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12,p13,p14]
         matchData = [-9, None, None, None, None, query, False] #[Task, Capture1, Capture2, Capture3, Capture4, query, gptParse]
         for p in range(0, len(patterns)):
-            match = re.match(patterns[p], query)
+            match = re.fullmatch(patterns[p], query)
             if match:
                 matchData[0] = p+1
                 for i in range(1,len(match.groups())+1):
@@ -185,7 +192,7 @@ class matchResponse:
         matchData[5] = gptParse
         matchData[6] = True
         for p in range(0, len(patterns)):
-            match = re.match(patterns[p], gptParse)
+            match = re.fullmatch(patterns[p], gptParse)
             if match:
                 matchData[0] = p+1
                 for i in range(1,len(match.groups())+1):
