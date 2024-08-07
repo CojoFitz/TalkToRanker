@@ -1,5 +1,5 @@
 import dash, math, warnings,json, jsonpickle, openai
-from dash import dcc, html, callback, no_update
+from dash import dcc, html, callback, no_update, ctx
 import dash_cytoscape as cyto
 from dash.dependencies import Input, Output, State
 import plotly.express as px
@@ -34,20 +34,19 @@ figureAb = 'assets/FigureBA.png'
 good = 'assets/good.png'
 error = 'assets/error.png'
 
-distTrack = 'assets/DistTrack.png' #Distribution tracking
-impA = 'assets/importantA.png' #Importance of feature
-StabilityA = 'assets/Stability.png'
-tablePlot = 'assets/tablePlot.png'
-CorrelationA = 'assets/Correlation.png'
-SubsetA = 'assets/Subset.png'
-
+ani1 = 'assets/Ani1.png'
+ani2 = 'assets/Ani2.png'
+ani3 = 'assets/Ani3.png'
+ani4 = 'assets/Ani4.png'
+ani5 = 'assets/Ani5.png'
+ani6 = 'assets/Ani6.png'
 
 adm = 'admission_all.csv'
 credit = 'credit_risk_all.csv'
 df = pd.read_csv(r'datasets/'+adm)
 target = 'y'
 
-nonVisMatch = (1,6,8,9,10,11,13)
+nonVisMatch = (1,6,8,9,10,11,13,15)
 #--------------------------
 
 #------------------------------
@@ -140,40 +139,40 @@ carousel = dbc.Carousel(
 
  
             "key": "1",
-            "src": distTrack,
-            "header": "Example of tracking the distribution ",
+            "src": ani1,
+            "header": "User asks what factors are the most important for admissions",
                         "captionClassName" : "p-0 bg-dark border text-light bg-opacity-75 position-static"
 
         },
         {
             "key": "2",
-            "src": impA,
-            "header": "Example of showing the feature attribution",
+            "src": ani2,
+            "header": "User asks about the influence that GPA and TOEFL have on admittance",
                         "captionClassName" :"p-0 bg-dark border text-light bg-opacity-75 position-static"
         },
         {
             "key": "3",
-            "src": StabilityA,
-            "header": "Example of the stability being shown",
+            "src": ani3,
+            "header": "User requests for the top 200 to be selected",
                         "captionClassName" :"p-0 bg-dark border text-light bg-opacity-75 position-static"
         },
                 {
             "key": "4",
-            "src": tablePlot,
-            "header": "User is shown a table of the raw data",
+            "src": ani4,
+            "header": "User asks how the GPA scores are spread out",
                         "captionClassName" :"p-0 bg-dark border text-light bg-opacity-75 position-static"
         },
 
         {
             "key": "5",
-            "src": SubsetA,
-            "header": "User subsets the dataset",
+            "src": ani5,
+            "header": "User compares tracked selection states",
                         "captionClassName" :"p-0 bg-dark border text-light bg-opacity-75 position-static"
         },
                 {
             "key": "6",
-            "src": CorrelationA,
-            "header": "User makes selection on correlation graph, the rank updates based on the selection",
+            "src": ani6,
+            "header": "User views the raw data as a table",
                         "captionClassName" :"p-0 bg-dark border text-light bg-opacity-75 position-static"
         }
     ],
@@ -194,8 +193,8 @@ modal = html.Div(
                 dbc.ModalHeader(dbc.ModalTitle("Module", id = "modal-header")), #Have the module name here
                 dbc.ModalBody("Text about module goes here", id = "modal-body"), #Have a dictionary generate the text based on module name
                 dbc.ModalFooter(
-                    dbc.Button(
-                        "Close", id="close", className="ms-auto", n_clicks=0
+                    html.Span(
+                    id="close"
                     )
                 ),
             ],
@@ -292,8 +291,8 @@ def contextTable():
         # Table header
         html.Thead(
             html.Tr([
-                html.Th("Contextual Use Predictor Used", style={'border': '1px solid black', 'width': size, 'textAlign': 'center'}),
-                html.Th("Contextual Use Predictor Not Used", style={'border': '1px solid black', 'width': size, 'textAlign': 'center'}),
+                html.Th("With contextualUse", style={'border': '1px solid black', 'width': size, 'textAlign': 'center'}),
+                html.Th("Without contextualUse", style={'border': '1px solid black', 'width': size, 'textAlign': 'center'}),
             ], style={'border': '1px solid black'})
         ),
         # Table body
@@ -494,7 +493,7 @@ html.P("1. \"What is the distribution of {{features}}\" - Shows the distribution
 ])
 
 
-introText = [""" Algorithmic rankers prove to be very useful in a multitude of different areas, as they assist greatly in the processes of making decisions. While those with data literacy may view ranker models as intuitive and easy to analyze, there is undeniably some level of knowledge required for one to obtain the answers to the questions they may have. As such, the average person may find it hard to utilize tools relating to rankings to the fullest extent. Our interface aims to make the process of utilizing rankers more accessible and intuitive. This is accomplished by leveraging, explainable artificial intelligence and visualizations to allow for rankers to be more accessible. """]
+introText = [""""""]
 introHeader = 'Talk To Ranker: conversational interface for ranking-based decision-making'
 
 
@@ -502,26 +501,40 @@ introHeader = 'Talk To Ranker: conversational interface for ranking-based decisi
 
 overviewHeader = 'General Overview'
 overviewBody = [
-    """Our interface is a hybrid conversational and visualization interface,  which generates visual and textual representations relevant to questions about the dataset. The interface is split into two views, the chat view (a) and visualization view (b). """,
+    """ Algorithmic rankers prove to be very useful in a multitude of different areas, as they assist greatly in the processes of making decisions. While those with data literacy may view ranker models as intuitive and easy to analyze, there is undeniably some level of knowledge required for one to obtain the answers to the questions they may have. As such, the average person may find it hard to utilize tools relating to rankings to the fullest extent. Our interface aims to make the process of utilizing rankers more accessible and intuitive. This is accomplished by leveraging, explainable artificial intelligence and visualizations to allow for rankers to be more accessible. Our interface is a hybrid conversational and visualization interface,  which generates visual and textual representations relevant to questions about the dataset. The interface is split into two views, the chat view (a) and visualization view (b). """,
     html.Img(src=figureAb),
-    """As you can see in the chat view, the user is able to ask questions about a dataset pertaining to university admissions. After the user asks a question two things occur, a textual response is generated in the chat view as well as a visual response in the visualization view. The exact process of how this occurs is described in the interactive flow chart.""",
-    """Our interface is split into four major components being that of the Parser, Context Provider, Textual Explainer, and Visual Explainer. These components each play critical roles in shaping the interface's capabilities of delivering cohesive and informative information to the user. The following interactive diagram provides an overview of how the components all interact with each other: """,
+    """As you can see in the chat view, the user is able to ask questions about a dataset pertaining to university admissions. After the user asks a question two things occur, a textual response is generated in the chat view as well as a visual response in the visualization view. Our interface is split into three major components, each with their own individual modules. They are that of the Explainable AI-Augmented Input, LLM-Augmented analytical module, and the Visualization Generator. Feel free to explore the different parts that make up these three components, with the following interactive diagram: """,
 ]
 
 parserHeader = 'Parser'
 parserText = [
-"""The interactions in this interface primarily result from the user’s input in the chat-view. Since there are many different ways a user can ask the same question, it is important for the interface to be able to distinctly understand a question. As such, there needs to be a way to determine what the question is asking and what information is needed to answer it. It is important to have such information to accurately generate textual and visual explanations for the user. To help accomplish this, we are utilizing large language models such as GPT 3.5 [1] via API calls from OpenAi, to assist in this process. The way how we utilize the large language models will be elaborated more upon, however, it is first important to consider related works. """,
-"""One usage of LLMs in visualization interfaces is to generate executable code for visualizations. In an interface called Chat2Vis Paula and Susnjak demonstrated the capability of various LLMs to generate executable python code for the matplotlib library to create visualizations based on textual input [2]. This method was not selected to be used in our interface as there were some issues found with it. The code generated by the LLM was not always reliable, through testing this technique there were often times where the code would not execute or displayed wrong information. Additionally, with prompt engineering techniques that allow for instructions to be bypassed [3], a user can use this to inject whatever code they want. Furthermore, the unreliability and static nature of the visualizations makes the implementation of interactivity with the visualizations difficult to implement within reason.""",
+"""The interactions in this interface primarily result from the user’s input in the chat-view. Since there are many different ways a user can ask the same question, it is important for the interface to be able to distinctly understand a question. As such, there needs to be a way to determine what the question is asking and what information is needed to answer it. It is important to have such information to accurately generate textual and visual explanations for the user. To help accomplish this, we are utilizing large language models such as GPT 3.5 [1] via API calls from OpenAi, to assist in this process. """,
+"""One usage of LLMs in visualization interfaces is to generate executable code for visualizations. In an interface called Chat2Vis Paula and Susnjak demonstrated the capability of various LLMs to generate executable python code for the matplotlib library to create visualizations based on textual input [2]. This method was not selected to be used in our interface as there were some issues found with it. The code generated by the LLM was not always reliable, through testing this technique there were often times where the code would not execute or displayed wrong information. Additionally, with prompt engineering techniques that allow for instructions to be bypassed [3], a user can use this to inject whatever code they want. Furthermore, the unreliability and static nature of the visualizations drastically reduces the capability for interactivity to be integrated.""",
 """We took inspiration from similar works [4,5] creating a question bank containing formatted questions known as a gold parse. The gold parse is an idealized format for different question types to be in, which in turn user inputs can be matched to. The following is an example of some of the gold parses in our question bank:""",
 tableTest(),
-"""The interface works by checking if the user’s input matches to the gold parse, if it does not it will use an LLM such as GPT 3.5 [1] to format and match the user’s input to match a gold parse. For example if a user types “I am very curious to know the correlation between the target and age”, the LLM will re-format their input as "What is the correlation of age with target". After the input is made to be in the format of the gold parse, it will then be parsed using a list of regular expressions for different query types. Each query type has different parameters, such as features and numbers, of which will be stored and the type of query will be stored as a numerical value. At this point, the user’s input is matched with a gold parse and all of the information necessary to generate a response and visualization has been parsed. The information obtained from the parser is then subsequently passed off to the context provider."""
-]
+"""The interface works by checking if the user’s input matches to the gold parse, if it does not it will use an LLM such as GPT 3.5 [1] to format and match the user’s input to match a gold parse. For example if a user types “I am very curious to know the correlation between the target and age”, the LLM will re-format their input as "What is the correlation of age with target". After the input is made to be in the format of the gold parse, it will then be parsed using a list of regular expressions for different query types. Each query type has different parameters, such as features and numbers, of which will be stored and the type of query will be stored as a numerical value. At this point, the user’s input is matched with a gold parse and all of the information necessary to generate a response and visualization has been parsed. The information obtained from the parser is then subsequently passed off to the Context Predictor. """,
+html.B('Sources'),
+sources()]
+exampleFeats = [f""" "age", "gender", "height", "weight", "blood_pressure_systolic", "blood_pressure_diastolic", "heart_rate", "respiratory_rate", "temperature", "cholesterol_total" """]
 
-contextHeader = 'Context Provider'
-contextBody = ['Our interface produces interactions and explanations from both a textual and visual medium. These two components require a lot of contextual information about user requests, the dataset, and more in order to properly work. This interface addresses this with the use of the context provider, which produces and stores the necessary information for tasks to be carried out. ',
-               """The context provider will receive data when a user makes an input in the chat view and their input is parsed by the parser. The parser sends the context provider information such as the task to be executed, features needed, any numerical values needed, and more. Once the context provider is given this information, most of it will be stored until it is needed by the explainers. The most actively used and changing aspect of the context provider is the global id list it has. Every item in a dataset used for the interface is expected to have a unique numeric id, the ids of selected points will be stored in the context provider based on interactions from the visualization view. The process of how selections work will be explained in more detail later in the section about the Visual Explainer, however, the context provider is what is responsible for maintaining a working memory of what the state is. 
- """,
- """The context provider also has a sub-component known as the contextual predictor, which serves to make predictions that assist in providing contextual information. The way how the subcomponents work will be elaborated more upon in sections more relevant to their usage, but in essence this sub-component makes use of LLMs to create string values that help with providing context. The need and type of context being used is unique for each aspect of the contextual predictor, which include: the contextualUse, contextualScore, and contextualElement. This area of the context provider may seem vague at first, but will be clarified when their uses are brought up later."""]
+
+contextHeader = 'Context Predictor'
+contextBody = [
+"""The Context Predictor is responsible for producing and storing contextual information that is necessary for the interface to function. The information that it stores is primarily the result of user interactions, this is information such as the most recent parse and points selected on a visualization. The Context Predictor’s primary function, as the name implies, is to make predictions about the contextual purpose of the dataset. There are different predictions that are generated by the Context Predictor, which are the contextualUse, contextualScore, and contextualElement. In order to generate these predictions, an LLM such as GPT 3.5 [1] is utilized.""",
+
+""" The contextualUse is responsible for describing the dataset and its usage. The contextualUse is utilized by an LLM to ensure that it is generating contextually aware responses and information. The contextualUse is generated by providing the Context Predictor with a list of all the feature names in the dataset, and then asking the LLM to generate a description of what the dataset is for. An instance where this is useful can be highlighted with a dataset with the following feature names:""",
+quoteBox(exampleFeats),
+"""By looking at the features, it is quite easy to recognize that this dataset is based on medical information. The inclusion of features such as "blood_pressure_diastolic" and "heart_rate" help to distinguish the purpose of this dataset, as they are metrics that are commonly measured in medical environments. This dataset in particular highlights the need for the contextualUse, as the context of features such as “age” and “gender” can vary greatly depending on the dataset. """,
+"""Since our interface expects datasets in a format with a column named ‘y’ for score, there is not always a clear understanding of its meaning. This is addressed by the contextualScore. The contextualScore is found by providing the contextualUse to an LLM, and asking it to generate a good replacement for y based on the contextualUse’ description. This obtained value will replace ‘y’, allowing for axis labels involving ‘y’ to be more informative.""",
+"""The final area of prediction is the contextualElement. The contextualElement seeks to describe what is being referenced for each entry of the dataset. For example, if there was a dataset involving patient data, the contextualElement would be expected to identify that each entry or row refers to a patient. This process is done simply by providing an LLM with a list of all of the features in the dataset, and asking it to generate an appropriate element name. Once the element name is generated, it is utilized as a response to queries such as “select the top 100” where the expected response would be “showing the top 100 entries”; in this case it would replace element wioth the contextualElement.""",
+html.B('Sources'),
+f"""[1] Brown, Tom, et al. "Language models are few-shot learners." Advances in neural information processing systems 33 (2020): 1877-1901."""
+
+
+
+
+
+]
 
 
 textualHeader = 'Textual Explainer'
@@ -529,44 +542,51 @@ textualHeader = 'Textual Explainer'
 textualInteraction = [f"""User:  “Hey, I am an admission counselor and I want to know if the correlation of the TOEFL_Score is important or not”""",
              f"""System: “Yes, the correlation between the target (likelihood of admission) and TOEFL Score is quite strong at 0.826, indicating that TOEFL Score is an important factor in predicting a student's likelihood of admission to the graduate program.”"""]
 
-exampleFeats = [f""" "age", "gender", "height", "weight", "blood_pressure_systolic", "blood_pressure_diastolic", "heart_rate", "respiratory_rate", "temperature", "cholesterol_total" """]
 
 textualBody = ["""Our interface uses textual explanations generated with the assistance of LLMs such as GPT 3.5 [1] to provide rich textual responses. These textual responses are made using the textual explainer, whose function is as the name implies to provide explanations through text. The text explainer begins by receiving contextual information, such as filters, contextual use, and parsed information such as the task type and features. Once the textual explainer has the information it needs, it will generate what is called a static response based on the task type. The static response is essentially a template to generate a pre-made message that answers the question at its most basic level. The following table will show examples of the static response being generated based on some task types:""",
                explainerTable(),
-               """The generation of the static response is important for the next step, of generating text using a large language model. Since a large language model is being used to generate text, an obvious question is why even bother making a static response when one can directly send the user’s input to the large language model. The static response exists to remedy the limitations large language models have with handling mathematical calculations and large amounts of data. By having the static response, we can provide the LLM with a baseline of what an accurate response looks like, and allow the LLM to build off of it. These textual responses are generated using GPT 3.5 [1] via the OpenAI api, by giving the LLM a query using both the user’s original unparsed message alongside the static response. The query will also include something known as the contextual use, but this will be explained in further detail later. The following is a complete example of an interaction between the user and the textual explainer:""",
+               """The generation of the static response is a critical part for our process of generating text using a large language model. Since a large language model is being used to generate text, an obvious question is why even bother making a static response when one can directly send the user’s input to the large language model. The static response exists to remedy the limitations large language models have with handling mathematical calculations and large amounts of data. By having the static response, we can provide the LLM with a baseline of what an accurate response looks like, and allow the LLM to build off of it. These textual responses are generated using GPT 3.5 [1] via the OpenAI api, by giving the LLM a query using the user’s original input, the static response, and the contextualUse. The following is a complete example of an interaction between the user and the textual explainer:""",
                quoteBox(textualInteraction),
                """As can be observed in the interaction, the response was able to provide a mathematically based answer alongside an explanation for it. The user, who may not be as familiar with data science, can now know what the correlation is and why that may be important for their purposes. """,
-               """As mentioned previously, the context provider also generates a string called the contextualUse, which is critical in making textual explanations more informed. The contextual use is generated in the context provider by giving an LLM a list of all the features in a dataset, and then asking the LLM to generate a short description of what the dataset is for. To demonstrate the effectiveness and need for this, let us assume we have a dataset with the following feature names:""",
+               """In order for generated explanations to be contextually aware, the textual explainer is provided a string called the contextualUse by the Context Predictor. The contextualUse is a string that describes the dataset and its usage, this is then used to assist an LLM in making responses that are contextually aware. To generate the contextualUse, the Context Predictor is given a list of all the features in the dataset, and asks an LLM to generate a description of what the dataset is for. To demonstrate the effectiveness and need for this, let us assume we have a dataset with the following feature names:""",
                 quoteBox(exampleFeats),
-                """By looking at the features, it is quite easy to recognize that this dataset is based on medical information. The inclusion of features such as "blood_pressure_diastolic" and "heart_rate" help to distinguish the purpose of this dataset, as they are metrics that are commonly measured in medical environments. This dataset in particular highlights the need for the contextualUse, as the context of features such as “age” and “gender” can vary greatly depending on the dataset. To help highlight the need for the contextual use, we included an example of an identical question being asked with and without the contextual use predictor.""",
+                """By looking at the features, it is quite easy to recognize that this dataset is based on medical information. The inclusion of features such as "blood_pressure_diastolic" and "heart_rate" help to distinguish the purpose of this dataset, as they are metrics that are commonly measured in medical environments. This dataset in particular highlights the need for the contextualUse, as the context of features such as “age” and “gender” can vary greatly depending on the dataset. To help highlight the need for the contextualUse, we included an example of an identical question being asked with and without the contextualUse:""",
                 html.Div([ boldText('Question:','What is the correlation of the target with age?'),
                 boldText('Static Response:','The correlation between the target and age is 0.826'),
                 boldText('Contextual Use (Generated via GPT 3.5[1]):', 'This dataset is likely used for monitoring and analyzing the health status of individuals, including assessing cardiovascular risk factors and overall well-being.'),
                                 contextTable()
                 ]),
-                """As evident in the two responses generated above, responses generated by the contextual use predictor offer much more informative and relevant responses to the dataset as a whole. The contextual use predictor also allows for responses to be much more friendly towards users. Since a major goal is to make this interface accessible for individuals who may lack data literacy, the contextual use can enable responses to be clear and contextually aware. """
-                ]
+                """As evident in the two responses generated above, responses generated with the contextualUse offer much more informative and relevant responses to the dataset as a whole. This also allows for responses to provide more clarification. Most importantly, this serves to make the interface more accessible to differing levels of data-literacy.""",
+                html.B('Sources'),
+f"""[1] Brown, Tom, et al. "Language models are few-shot learners." Advances in neural information processing systems 33 (2020): 1877-1901."""]
 visualHeader = 'Visual Explainer'
 visContextUse = ["""This dataset is likely used to predict or analyze graduate school admissions decisions based on applicants' academic scores, university ranking, statement of purpose, letters of recommendation, GPA, and research experience."""]
 
-visualBody = [f"""The visual explainer's job is to offer a visual explanation for the questions that the users have about the ranker and data. In order to generate these visualizations we chose to use dash and plotly for our interface, as they provide tools for selection and animation. Visualizations are shown whenever a user asks a question that requires a visualization, visualizations being updated or not based on a user’s query is dependent on the task type. Similar to how textual responses in the textual explainer have a static response generated, the visual explainer will use a graph type for each specific type of question. For example, a correlation question will be met with a scatterplot and a distribution question will be met with a histogram. These visualizations also rely on the context provider for information such as the features, points, and selections needed to be shown on the visualization.""",
+visualBody = [f"""Just as textual explanations are important to decision making, visualizations play an equally important role in the process. Our interface recognizes the importance of visualizations through the inclusion of the visual explainer, which aims to provide rich visualizations based on user input. These visualizations were generated through the use of dash and plotly, which offer native animation and selection tools.""",
+            f"""The visual explainer generates visualizations based on user interactions, such as making selections on the graph or asking questions in the chat. Chat-based interactions are handled by the parser, which matches user responses to a templated format called a gold parse. Each gold parse has a unique task type associated with it, these task types determine what visualization is to be shown. For example, questions that involve correlation will show a scatter plot; whereas questions that ask about distribution will show a histogram. As for other interactions, user selections through a lasso or box select, can also update the visualization on what areas are highlighted.""",
+
               f"""Since the interface is designed for rankers, visualizations that support scatter plots will give information about the ranks of points. The information is given based on coloring, wherein the higher ranked points are given darker colors and the lower ranked points are given lighter colors. This can be shown in figure c.): """,
                   html.Img(src=figureC),
-                f"""Selections are another area of interactivity supported by our interface, and they allow for users to have more control over the data. Selections can be done by using a lasso and box select tool on the points of the graph you wish to see. Alternatively, a user can also request to perform a selection through the chat, the options for this will be elaborated upon in more detail later in this section. There are two types of selections that can be done as well, filtering and subsetting. Filtering will highlight the points that are selected and influence textual responses, however, the unselected points will remain present on the visualization with a grayed out color. Subsetting on the other hand allows for points to entirely be removed from the visualization as a whole, subsetting will also impact textual responses based on the group subsetted. These two functionalities are useful, as it allows users to cut out information not relevant or keep track of information for specific groups.""",
+                f"""Selections are another area of interactivity supported by our interface, and they allow for users to have more control over the data. Selections can be done by using a lasso and box select tool on the points of the graph you wish to see. Alternatively, a user can also request to perform a selection through the chat. There are two types of selections that can be done as well, filtering and subsetting. Filtering will highlight the points that are selected and influence textual responses, however, the unselected points will remain present on the visualization with a grayed out color. Subsetting on the other hand allows for points to entirely be removed from the visualization as a whole, subsetting will also impact textual responses based on the group subsetted. These two functionalities are useful, as it allows users to cut out information not relevant or keep track of information for specific groups.""",
                 f"""Since selecting with a lasso select tool isn’t always the most precise, textual selections prove to be useful for cases where a user may want a specific group selected. Here are the supported textual selection types in our interface, assume that all of these selections will be used for filtering:""",
                 selectTable(),
-                f"""As discussed in the context provider, every entry in the dataset is expected to have a unique numerical ID assigned to it. Since the context provider maintains a global record of the IDs, this allows for selections made on one visualization to persist into other visualizations, even if the type of visualization has changed. That means a user can perform a selection on a graph that shows the ranker's stability, and see how the selection they made impacted the distribution.This also applies for visualizations where there are more than one feature in the visualization, if one subplot in a view is selected, then the selections made will be reflect on the other plots.""",
-                f"""As users begin to update filters a lot, they may also be interested in knowing how their filters may change things. A feature that we implemented was the ability to track responses. For example, let’s say a user wishes to keep track of the current state of selections for a scatter plot graph that shows correlation. They can request in the chat to “track the response as trackedName”, this will in turn keep track of what the previous response was alongside the visualization state of the response. As the user updates their selections, they can eventually ask to see the tracked response. Upon requesting the tracked response, they will be shown a visualization comparing the old from the new, alongside a chat message comparing the old and new response generated.""",
-                f"""This visual explainer makes use of predictions made in the context provider, this is done to make the interface more descriptive. Since our interface expects datasets used with it to have a ‘y’ column, indicating the score, there is not always a clear indication of what y means. A solution of this is in the context provider through the contextScore. The contextScore is found by providing the contextualUse, as described in the textual explainer, to an LLM. From there the LLM will be asked to generate a descriptive name to replace ‘y’. This process is done prior to any query being executed and only executed once, so as such a user’s input will not influence the name of y in any capacity. Let us see an example where a visualization was generated showing the correlation between the TOEFL Score and the target(y):""",
+                f"""Every entry in the dataset is expected to have a unique numerical ID assigned to it. The Context Predictor maintains a global record of the IDs, allowing for selections to remain persistent amongst visualizations. That means a user can perform a selection on a graph that shows the ranker's stability, and see how the selection they made impacted the distribution. This also applies for visualizations where there are more than one feature in the visualization, if one subplot in a view is selected, then the selections made will be reflect on the other plots.""",
+                f"""As users begin to update filters a lot, they may also be interested in knowing the impact of their filters. This is addressed through feature tracking, which allows users to track responses. For example, let’s say a user wishes to keep track of the current state of selections for a scatter plot graph that shows correlation. They can request in the chat to “track the response as trackedName”, this will in turn keep track of what the previous response was alongside the visualization state of the response. As the user updates their selections, they can eventually ask to see the tracked response. Upon requesting the tracked response, they will be shown a visualization comparing the old from the new, alongside a chat message comparing the old and new evaluation generated.""",
+                f"""The visual explainer makes use of the Context Predictor to enhance its descriptiveness. Since the format of datasets in our interface expects a column named ‘y’ for score, there is not always a clear understanding of its meaning. This is addressed by the Context Predictor’s contextScore. The contextScore is found by providing the contextualUse, which is a generated description of the dataset, to an LLM such as GPT 3.5[1]. Once the LLM has the contextualUse, they will be asked to generate a more descriptive name to replace ‘y’.This process is initialized at the start, so this name will be consistently maintained throughout a session.  Let us see an example where a visualization was generated showing the correlation between the TOEFL_Score and the target(y):""",
                   html.Img(src=figureC),
                 html.Div([
-                    html.P('As seen above, using the contextual predictor, the LLM was able to identify that the Y score likely refers to the admission decisions with this dataset. The contextualUse here was:'),
+                    html.P('As seen above, using the Context Predictor, the LLM was able to identify that the Y score likely refers to the admission decisions with this dataset. The contextualUse here was:'),
                     quoteBox(visContextUse),
-                    html.P("""The contextual use in this scenario helped to identify a suitable name for the value of y, that is informative and practical for the purposes of the user. """)
-                    ])
+                    html.P("""The contextualUse in this scenario helped to identify a suitable name for the value of y, that is informative and practical for the purposes of the user. """)
+                    ]),
+                    html.B('Sources'),
+f"""[1] Brown, Tom, et al. "Language models are few-shot learners." Advances in neural information processing systems 33 (2020): 1877-1901."""
             ]
 
-
+featureAttrBody = ["""Machine learning models, like algorithmic rankers, are often considered black boxes because their internal workings are difficult to interpret. To address this, Explainable AI (XAI) methods provide ways to explain the outcomes of such models. In this work, we utilize SHAP[1], a model-agnostic, post-hoc XAI method, to explain the results of the rankers. Using the official SHAP package [https://github.com/shap/shap], we generate feature attribution explanations for each data item during pre-processing and load this data on the interface. For every data item, feature attribution is represented as a positive or negative score for each feature, reflecting the feature's impact on the model's outcome—in this case, the ranking score. Users can query the feature attributions for a custom group of data items to determine which features are most significant for that group. The backend of the interface calculates the average of the absolute feature attributions for each feature within the group.""",
+                   html.B('Sources'),
+                   """[1]Lundberg, Scott M., and Su-In Lee. "A unified approach to interpreting model predictions." Advances in neural information processing systems 30 (2017)"""
+]
 
 
     
@@ -590,32 +610,28 @@ html.Div(
                 },
         style={'width': '95vw', 'height': '500px'},
         elements=[
-            {'data': {'id': 'VizViewLabel', 'label': 'Visualization View'}, 'position': {'x': 200, 'y': 325},'classes': 'unclick whiteNode'},
-
-            {'data': {'id': 'UserLabel', 'label': 'User'}, 'position': {'x': 0, 'y': 200},'classes': 'unclick whiteNode'},
-            {'data': {'id': 'ParserLabel', 'label': 'Parser'}, 'position': {'x': 200, 'y': 200}},
-            {'data': {'id': 'VisualLabel', 'label': 'Visual Explainer'}, 'position': {'x': 400, 'y': 200}},
-
-            {'data': {'id': 'chat', 'label': 'Chat View'}, 'position': {'x': 0, 'y': 75},'classes': 'unclick whiteNode'},
-            {'data': {'id': 'textual', 'label': 'Textual Explainer'}, 'position': {'x': 200, 'y': 75}},
-            {'data': {'id': 'ContextProv', 'label': 'Contextual Provider'}, 'position': {'x': 400, 'y': 75}},
-            {'data': {'id': 'dataView', 'label': 'Data'}, 'position': {'x': 600, 'y': 75},'classes': 'unclick whiteNode'},
-
-
-
-
-            {'data': {'source': 'dataView', 'target': 'ContextProv','label': 'Send Dataset'}, 'classes' : 'top'},
-            {'data': {'source': 'ContextProv', 'target': 'textual','label': 'Send parsed information and contextualUse'},'classes': 'double top'},
-            {'data': {'source': 'textual', 'target': 'chat','label': 'display textual response'}, 'classes' : 'top'},
-
-            {'data': {'source': 'chat', 'target': 'UserLabel', 'label': 'User is provided with a response'}, 'classes' : 'rightSide'},
-
-            {'data': {'source': 'UserLabel', 'target': 'VizViewLabel','label': 'User Makes selection'}, 'classes' : ' leftSide'},
+           # {'data': {'id': 'VizViewLabel', 'label': 'Visualization View'}, 'position': {'x': 200, 'y': 325},'classes': 'unclick whiteNode'},
             
-            {'data': {'source': 'UserLabel', 'target': 'ParserLabel', 'label': 'User asks a question'}, 'classes' : 'top'},
-            {'data': {'source': 'ParserLabel', 'target': 'ContextProv','label' : 'Send parsed information'}, 'classes': ' softLeft top'},
-            {'data': {'source': 'VisualLabel', 'target': 'ContextProv', 'label' : 'Get and Send IDs and Task Type'},'classes': 'double softRight'},
-            {'data': {'source': 'VisualLabel', 'target': 'VizViewLabel', 'label' : 'Send and receive selected IDs, and update the visualization'},'classes': 'double rightSide bottom'},
+            { 'data': { 'id': "Feature", 'label': "Feature Attributions", 'group': "nodes", 'parent': "p1" } , 'position': {'x': 0, 'y': 200}},
+            { 'data': { 'id': "Data", 'label': "Data", 'group': "nodes", 'parent': "p1" }, 'position': {'x': 0, 'y': 100} ,'classes': 'unclick whiteNode'},
+            { 'data': { 'id': "p1", 'label': "Explainable AI-Augmented Input", 'group': "nodes" },'classes': 'unclick grouperNode bottom'},
+
+            { 'data': { 'id': "Context", 'label': "Context Predictor", 'group': "nodes", 'parent': "p2" } , 'position': {'x': 150, 'y': 200}},
+            { 'data': { 'id': "Text", 'label': "Textual Explainer", 'group': "nodes", 'parent': "p2" } , 'position': {'x': 150, 'y': 150}},
+            { 'data': { 'id': "Parser", 'label': "Parser", 'group': "nodes", 'parent': "p2" }, 'position': {'x': 150, 'y': 100} },
+            { 'data': { 'id': "p2", 'label': "LLM-Augmented analytical module", 'group': "nodes" },'classes': 'unclick grouperNode bottom'},
+
+
+            { 'data': { 'id': "Chat", 'label': "Text Chat", 'group': "nodes", 'parent': "p3" } , 'position': {'x': 300, 'y': 200}, 'classes': 'unclick whiteNode'} ,
+            { 'data': { 'id': "Vis", 'label': "Visual Explainer", 'group': "nodes", 'parent': "p3" }, 'position': {'x': 300, 'y': 100} },
+
+
+            { 'data': { 'id': "p3", 'label': "Visualization Generator", 'group': "nodes" },'classes': 'unclick grouperNode bottom'},
+            {'data': {'source': 'p3', 'target': 'p2', 'label' : 'Adapt Response'},'classes': 'double top'},
+            {'data': {'source': 'p3', 'target': 'p2', 'label' : 'Generate'},'classes': 'double bottom'},
+            {'data': {'source': 'p1', 'target': 'p2', 'label' : 'Process'},'classes': 'top'},
+
+
 
 
 
@@ -632,9 +648,9 @@ html.Div(
                 'content': 'data(label)',
                 'text-halign':'center',
                 'text-valign':'center',
-                'font-size': '12px',
-                'width':'80px',
-                'height':'50px',
+                'font-size': '10px',
+                'width':'58px',
+                'height':'40px',
                 'shape':'square',
                 'text-max-width' : '70px',
                 'text-wrap':'wrap',
@@ -648,19 +664,40 @@ html.Div(
                 'selector': 'edge',
                 'style': {
                     'content': 'data(label)',
-                    'curve-style': 'bezier',
-                    'font-size': '10px',
-                    'text-max-width' : '120px',
+                    'curve-style': 'straight',
+                    'font-size': '10x',
+                    'text-max-width' : '60px',
                                     'text-wrap':'wrap',
-
-                    'target-arrow-color': 'black',
-                    'target-arrow-shape': 'triangle',
+                    
                     'line-color': 'black',
+                                        'target-arrow-color': 'black',
+                    'target-arrow-shape': 'triangle',
                 }
-            }, 
+            },  
+              {
+                'selector': '.offsetTop',
+                'style': {
+                    'target-endpoint': '39px -30px',
+                    'source-endpoint': '-39px -30px',
+                    'source-arrow-color': 'black',
+                    'source-arrow-shape': 'triangle-tee',
+                    'source-arrow-width': '400px',
+
+                }
+            },  
+
+                          {
+                'selector': '.offsetBottom',
+                'style': {
+                    'source-endpoint': '0 30px',
+                         'target-endpoint': '0 30px'
+                }
+            },  
             {
                 'selector': '.double',
                 'style': {
+                                        'curve-style': 'straight',
+
                     'target-arrow-color': 'black',
                     'target-arrow-shape': 'triangle',
                     'line-color': 'black',
@@ -671,7 +708,7 @@ html.Div(
             {
                 'selector': '.top',
                 'style': {
-                       'text-margin-y' : '-12px'
+                       'text-margin-y' : '-15px'
                 }
             },
       {                      'selector': '.bottom',
@@ -708,11 +745,20 @@ html.Div(
             },
 
             {
+                'selector': '.grouperNode',
+                'style': {
+                    'shape':'roundrectangle',
+                'background-color': '#eeeeee',
+                'text-halign':'center',
+                'text-valign':'bottom',
+                }
+            },
+                    {
                 'selector': '.whiteNode',
                 'style': {
                 'background-color': '#d3d3d3',
                 }
-            }
+            },
             
         ]
 
@@ -720,8 +766,8 @@ html.Div(
     ),
     textSection('Example interactions', ['The following  gallery shows off just some of the numerous interactions that our interface is capable of handling. Feel free to check them out for yourself here: ']),
     carousel,
-    textSection('Example Queries',[exampleQueries()]),
-    textSection('Sources',[sources()]),
+    #textSection('Example Queries',[exampleQueries()]),
+    #textSection('Sources',[sources()]),
 
     textSection('Try the interface out for yourself: ',''),
     textSection('',''),
@@ -813,10 +859,11 @@ def createContext(n_clicks, value):
     return None, error, True, True
 
 textDict ={
-    'Contextual Provider' : modalFormatText(contextBody),
+    "Context Predictor" : modalFormatText(contextBody),
     'Visual Explainer' : modalFormatText(visualBody),
     'Parser' : modalFormatText(parserText),
-    'Textual Explainer' : modalFormatText(textualBody)
+    'Textual Explainer' : modalFormatText(textualBody),
+    'Feature Attributions' : modalFormatText(featureAttrBody),
 }
         
 @app.callback(
@@ -889,6 +936,9 @@ def genResponse(taskType, df, feature1,userInput,chatContext):
     elif(taskType == 7):
         genResp = ['Here are the fairness ratios:']
         genResp += ([f"{key}: {value}" for key, value in fairnessCalc(feature1, df).items()])
+    elif (taskType == -1):
+        staticInput = 'There is no statically generated response for this question. Please make your best determination onm if this question should be answered or not. If you are not able to answer the question, be sure to say it. Otherwise, answer the question normally.'
+        genResp = explainer.explainGen(userInput,staticInput)
         
     return [genResp, staticResp]
 
@@ -900,7 +950,7 @@ def processQuery(userInput, contextObj):
     isTrackedVis = False
     staticResp = ''
     trackedName = ''
-    taskType = 0 #Zero will be our error state
+    taskType = -1 #Zero will be our error state
     textResponse = []
     feature1 = processedInfo = num1 = num2 = None
     id = contextObj.newId
@@ -912,7 +962,6 @@ def processQuery(userInput, contextObj):
         parsedQuery = formatQuery.queryParser(userInput,contextObj.parsedInfo,contextObj.responses[len(contextObj.responses) - 1].old,contextObj.responses[len(contextObj.responses) - 1].userQuestion)
 
     matchedQuery = parsedQuery[0]
-
 
     if(parsedQuery[6]):
         textResponse = []
@@ -1077,7 +1126,7 @@ def processQuery(userInput, contextObj):
             textResponse = genResponse(taskType,subDf,feature1,userInput,contextObj)[0]
         else:
             textResponse = ['Invalid Request. Fairness can only be calculated using filters involving the target.']
-            taskType = 0
+            taskType = -1
     elif matchedQuery == 13:
         if(contextObj.visType != 0):
             taskType = contextObj.visType
@@ -1093,6 +1142,11 @@ def processQuery(userInput, contextObj):
     elif matchedQuery == 14:
         taskType = 8
         textResponse = ['Showing the table']
+    elif matchedQuery == 15:
+     #free range response. Might be dangerous, buit we will see if it works
+        textResponse = [genResponse(taskType, None, None, userInput,contextObj)[0]]
+    elif matchedQuery == -9:
+        textResponse = ['I am having some issues understanding you, can you please try again?']
     if(taskType != 0): #This is to update context object given a successful parse
         parsedInfo = []
         oldResponse = "" 
@@ -1113,6 +1167,7 @@ def processQuery(userInput, contextObj):
         return contextObj
     else:
         return None
+     
 
 @app.callback(
     [Output("chat-output", "children"),
@@ -1226,7 +1281,7 @@ def display_selected_data(selected_data,chatContext):
 
 def update_chart(chat_history,flatIdList, features,chatContext):
     #Instead of using df here, we will probably be better of pre-subsetting it
-    if(chatContext != None):
+    if(chatContext != None and chatContext != 'null' ):
         chatContext = jsonpickle.decode(chatContext)
     else:
         return blank_fig()
@@ -1260,7 +1315,11 @@ def update_chart(chat_history,flatIdList, features,chatContext):
                                     title="Rank",
                                     tickmode="array",
                                     tickvals = tickVal,
-                            labelalias = reverse_labelalias,
+                                    labelalias = reverse_labelalias,
+                                    tickfont_size=20,
+                                    title_font_size= 20,
+
+
 
                                 )
                                 ))
@@ -1304,6 +1363,8 @@ def update_chart(chat_history,flatIdList, features,chatContext):
                                     tickmode="array",
                                     tickvals = tickVal,
                             labelalias = reverse_labelalias,
+                                                                tickfont_size=20,
+                                    title_font_size= 20,
 
                                 )
                                 ))
@@ -1427,6 +1488,8 @@ def update_chart(chat_history,flatIdList, features,chatContext):
                                     tickmode="array",
                                     tickvals = [int(filDf["colRank"].min()), int(filDf["colRank"].max())],
                             labelalias = {int(filDf["colRank"].min()): 'Bottom', int(filDf["colRank"].max()) : 'Top'},
+                                                                tickfont_size=20,
+                                    title_font_size= 20,
 
                                 )
                                 ))
@@ -1509,10 +1572,17 @@ def update_chart(chat_history,flatIdList, features,chatContext):
             fig.update_layout(showlegend=False)
         # fig.update_xaxes(range=[0, None])
         # fig.update_yaxes(range=[0, None])S
+            fig.for_each_annotation(lambda a: a.update(font_size=17))
+            fig.for_each_annotation(lambda a: a.update(text=a.text.split("=")[-1]))
             fig.update_yaxes(showticklabels=True, row=1)
             fig.update_yaxes(showticklabels=True, row=2)
             fig.update_xaxes(showticklabels=True, row=1)
             fig.update_xaxes(showticklabels=True, row=2)
+
+            fig.update_xaxes(showticklabels=True, row=1)
+            fig.update_xaxes(showticklabels=True, row=2)
+            fig.update_yaxes(title_font_size=18) 
+            fig.update_xaxes(title_font_size=18) 
             fig.update_yaxes(matches=None) 
             fig.update_xaxes(matches=None)
 

@@ -69,10 +69,12 @@ class matchResponse:
         Distribution and Correlation support extra features.
         Extra features mentioned must be in a comma seperated order such as: "feat1,feat2,feat3..." if there is only one feature just format it as: "feat1"
         
+        
 
 
+        If a user asks something that doesn't match up with any request, such as a generic message like "thank you" or "hello". Just respond with NONE
 
-
+        
         Do's:
         - Do follow the exact format for each task type.
         - Do ensure numerical features use numerical filtering format.
@@ -81,6 +83,8 @@ class matchResponse:
         - If the user says filter, always filter. If the user says subset, always subset. 
         - If there is not a clear specification of the feature, use the previous feature.
         - Correctly format extra features in the comma seperated order
+        - Try your hardest to interpret and fit to the format works best for the message. 
+        
 
         Don'ts:
         - Don't make up responses that don't fit the explicit format.
@@ -89,6 +93,7 @@ class matchResponse:
         - Don't include quotation marks in the outputs
         - Don't subset when the request is to filter.
         - Don't filter when the request is to subset.
+        - Don't add question marks or periods, unless the format expects them
 
         Good Examples:
         - User says: "I do not want apples that are older than 5 years"
@@ -147,7 +152,9 @@ class matchResponse:
 
         -User says: "What is the correlation of feature with the target"
         Response: "What is the correlation of income with the target" This response is bad since it does not have the correct order. Always format this as "What is the correlation of the target with feature"
-    
+        
+        -User says: "How much influence does feature have on the target"
+        Response: "How much influence does feature have on the target" This response is bad, since this is not one of the format types. This is meant to be matched to correlation.
         """
         response = self.client.chat.completions.create(
             model="gpt-3.5-turbo-0125",
@@ -157,6 +164,66 @@ class matchResponse:
             ]
         )
         return response.choices[0].message.content
+    
+    def repairFailed(self, failedQuery, userInput):
+        system_message = f"""
+        
+        Adhering STRICTLY to the format outlined here, you must match the user input to one of the following responses. Use the response you made an error with as a guidance to, attempt to re-adjust the format of it to align with the following:
+
+        1. "What is the distribution of {{features}}" - shows the distribution of the data. This one should also work for requests for mean, median, and standard deviation.
+        2. "Show me the stability" - shows stability of the data
+        3. "What are the most important features" - ranks feature attribution
+        4. "What is the correlation of the target with {{features}}" - shows correlation between a feature and the target
+        5. "(Filter or Subset) by {{number}}<{{feature}}<{{number}}" - filter OR subset based on a numerical feature range. You must specify for both the upper and lower bound, no deviations from the format allowed. You must type the one you want to do. Subsetting removes points not in the range, while filtering will just highlight the range.
+        6. "(Filter or Subset) the data when {{feature}} is {{value}}" - filter OR subset based on the value of a categorical feature. You must type the one you want to do. Subsetting removes points not in the range, while filtering will just highlight the range.
+        7. "Track the previous response as {{name}}" - tracks the previous response and stores its filters
+        8. "Show me tracked response {{name}}" - shows the tracked response, allowing the user to compare how the response has changed in comparison to the current state.
+        9. "What are the available features" - Lists the features that are available
+        10. "Select the top {{number}}" - Filters the selection to be the top n items. An example would be "Select the top 8"
+        11. "(Filter or Subset) the data such that {{feature}} is the most important feature" This creates a filter or subset to make sure that the columns selected are the most important feature.
+        12. "Show me the fairness of the current filter on {{feature}}" Shows the fairness of the given feature
+        13. "Suggest a better cutoff for fairness on {{feature}}" Suggests a better selection fo fairness of the given feature
+        14. "Show the rankings of the raw data" Will display the data with rows and rankings. 
+
+        
+        If the feature that has been typed out is vague, attempt to match it with the features being used in the dataset, which include:
+        {self.allFeats}.
+        
+        Extra features mentioned must be in a comma seperated order such as: "feat1,feat2,feat3..." if there is only one feature just format it as: "feat1"
+
+         Do's:
+        - Do follow the exact format for each task type.
+        - Do ensure numerical features use numerical filtering format.
+        - Do ensure categorical features use categorical filtering format.
+        - Do use the available features list to match features correctly.
+        - If the user says filter, always filter. If the user says subset, always subset. 
+        - If there is not a clear specification of the feature, use the previous feature. 
+        - Correctly format extra features in the comma seperated order
+        - Try your hardest to interpret and fit to the format works best for the message. 
+        - For multiple features, list with commas 
+
+        
+
+        Don'ts:
+        - Don't make up responses that don't fit the explicit format.
+        - Don't mix numerical and categorical filtering formats.
+        - Don't ignore the list of available features.
+        - Don't include quotation marks in the outputs
+        - Don't subset when the request is to filter.
+        - Don't filter when the request is to subset.
+        - Don't add question marks or periods, unless the format expects them
+
+        """
+
+        response = self.client.chat.completions.create(
+            model="gpt-3.5-turbo-0125",
+            messages=[
+                {"role": "system", "content": system_message},
+                {"role": "user", "content": 'User Input is: ' + userInput + ' Broken Generated Match is: ' + failedQuery + 'Repair it to fit formats.'},
+            ]
+        )
+        return response.choices[0].message.content
+    
     def queryParser(self,query,parsedInfo, lastResp, lastQues):
         p1 = r'(Filter|Subset) by (-?\d+\.?\d*)<(\w+)<(-?\d+\.?\d*)' #Numerical
         p2 = r"What is the correlation of the target with (\w+(?:\s*,\s*\w+)*)"
@@ -172,8 +239,11 @@ class matchResponse:
         p12 = r"Show me the fairness of the current filter on (\w+)"
         p13 = r"Suggest a better cutoff for fairness for feature (\w+)"
         p14 = r"Show the rankings of the raw data"
-        patterns = [p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12,p13,p14]
+        p15 = r"NONE"
+        patterns = [p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12,p13,p14,p15]
         matchData = [-9, None, None, None, None, query, False] #[Task, Capture1, Capture2, Capture3, Capture4, query, gptParse]
+
+
         for p in range(0, len(patterns)):
             match = re.fullmatch(patterns[p], query)
             if match:
@@ -184,6 +254,8 @@ class matchResponse:
                     matchData[1] = matchData[1].replace(" ", "")
                     matchData[1] = matchData[1].split(',')
                 return matchData
+            
+
         previousFeature = 'NO PREVIOUS FEATURE AVAILABLE'
         if (len(parsedInfo)>0):
             previousFeature = parsedInfo[0]
@@ -191,6 +263,10 @@ class matchResponse:
         gptParse = gptParse.replace('"', '') #Sometimes it'll add quotation marks to the parse. I am just going to remove them to make things easier
         matchData[5] = gptParse
         matchData[6] = True
+
+
+
+
         for p in range(0, len(patterns)):
             match = re.fullmatch(patterns[p], gptParse)
             if match:
@@ -200,4 +276,16 @@ class matchResponse:
                 if(p == 1 or p == 2):
                     matchData[1] = matchData[1].split(',')
                 return matchData
+            
+        repairedMessage = self.repairFailed(gptParse,query)
+        for p in range(0, len(patterns)):
+            match = re.fullmatch(patterns[p], gptParse)
+            if match:
+                matchData[0] = p+1
+                for i in range(1,len(match.groups())+1):
+                    matchData[i] = match.group(i)
+                if(p == 1 or p == 2):
+                    matchData[1] = matchData[1].split(',')
+                return matchData
+
         return[-9, None, None, None, None, query, False] #If no match can be made, we will return an error
