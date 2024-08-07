@@ -147,57 +147,7 @@ def interactionCard(text,srcImg):
                         'margin-right': '20%',
                     },
     )
-carousel = dbc.Carousel(
-    items=[
-        {
 
- 
-            "key": "1",
-            "src": ani1,
-            "header": "User asks what factors are the most important for admissions",
-                        "captionClassName" : "p-0 bg-dark border text-light bg-opacity-75 position-static"
-
-        },
-        {
-            "key": "2",
-            "src": ani2,
-            "header": "User asks about the influence that GPA and TOEFL have on admittance",
-                        "captionClassName" :"p-0 bg-dark border text-light bg-opacity-75 position-static"
-        },
-        {
-            "key": "3",
-            "src": ani3,
-            "header": "User requests for the top 200 to be selected",
-                        "captionClassName" :"p-0 bg-dark border text-light bg-opacity-75 position-static"
-        },
-                {
-            "key": "4",
-            "src": ani4,
-            "header": "User asks how the GPA scores are spread out",
-                        "captionClassName" :"p-0 bg-dark border text-light bg-opacity-75 position-static"
-        },
-
-        {
-            "key": "5",
-            "src": ani5,
-            "header": "User compares tracked selection states",
-                        "captionClassName" :"p-0 bg-dark border text-light bg-opacity-75 position-static"
-        },
-                {
-            "key": "6",
-            "src": ani6,
-            "header": "User views the raw data as a table",
-                        "captionClassName" :"p-0 bg-dark border text-light bg-opacity-75 position-static"
-        }
-    ],
-        variant="dark",                style={
-                    'margin-bottom': '20px',
-                    'margin-left': '20%',
-                    'margin-right': '20%',
-                },
-    indicators=False
-
-)
 
 
 modal = html.Div(
@@ -768,8 +718,8 @@ html.Div(
     #carousel,
     interactionCard("1. The following interaction shows a user asking what factors are the most important on admittance:", ani1),
     interactionCard("2. The following interaction shows a user asking about the influence of GPA and TOEFL on admittance:", ani2),
-    interactionCard("3. The following interaction shows a user asking for the top 200 applicants to be selected", ani3),
-    interactionCard("4. The following interaction shows a user asking how the values for CGPA are spread out", ani4),
+    interactionCard("3. The following interaction shows a user asking for the top 200 applicants to be selected:", ani3),
+    interactionCard("4. The following interaction shows a user asking how the values for CGPA are spread out:", ani4),
     interactionCard("5. The following interaction shows a user comparing tracked selection states:", ani5),
     interactionCard("6. The following interaction shows a user requesting to see the data as a table:", ani6),
 
