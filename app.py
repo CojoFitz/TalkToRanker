@@ -133,6 +133,20 @@ test =     html.H5(
         }
     )
 
+def interactionCard(text,srcImg):
+
+    return dbc.Card(
+        [
+        
+            dbc.CardHeader(html.B(text)),
+            dbc.CardImg(src=srcImg, bottom=True),
+        ],
+        style={
+                        'margin-bottom': '20px',
+                        'margin-left': '20%',
+                        'margin-right': '20%',
+                    },
+    )
 carousel = dbc.Carousel(
     items=[
         {
@@ -596,7 +610,11 @@ app.layout = html.Div([
 
 html.Div(
     children=[
-    headerSubhead('Talk To Ranker','A conversational interface for ranking-based decision-making'),
+    html.H2("TalkToRanker: A Conversational Interface for Ranking-based Decision-Making",style={
+                'text-align': 'center', 
+                'margin-top': '40px'
+            }),
+    #headerSubhead('Talk To Ranker','A conversational interface for ranking-based decision-making'),
     textSection('',introText+overviewBody),
     html.H1(
             "Click on each yellow module to learn more!",
@@ -619,7 +637,7 @@ html.Div(
             { 'data': { 'id': "Context", 'label': "Context Predictor", 'group': "nodes", 'parent': "p2" } , 'position': {'x': 150, 'y': 200}},
             { 'data': { 'id': "Text", 'label': "Textual Explainer", 'group': "nodes", 'parent': "p2" } , 'position': {'x': 150, 'y': 150}},
             { 'data': { 'id': "Parser", 'label': "Parser", 'group': "nodes", 'parent': "p2" }, 'position': {'x': 150, 'y': 100} },
-            { 'data': { 'id': "p2", 'label': "LLM-Augmented analytical module", 'group': "nodes" },'classes': 'unclick grouperNode bottom'},
+            { 'data': { 'id': "p2", 'label': "LLM-Augmented Analytical Module", 'group': "nodes" },'classes': 'unclick grouperNode bottom'},
 
 
             { 'data': { 'id': "Chat", 'label': "Text Chat", 'group': "nodes", 'parent': "p3" } , 'position': {'x': 300, 'y': 200}, 'classes': 'unclick whiteNode'} ,
@@ -627,8 +645,8 @@ html.Div(
 
 
             { 'data': { 'id': "p3", 'label': "Visualization Generator", 'group': "nodes" },'classes': 'unclick grouperNode bottom'},
-            {'data': {'source': 'p3', 'target': 'p2', 'label' : 'Adapt Response'},'classes': 'double top'},
-            {'data': {'source': 'p3', 'target': 'p2', 'label' : 'Generate'},'classes': 'double bottom'},
+            {'data': {'source': 'p3', 'target': 'p2', 'label' : 'Generate'},'classes': 'double top'},
+            {'data': {'source': 'p3', 'target': 'p2', 'label' : 'Adapt Response'},'classes': 'double bottomer'},
             {'data': {'source': 'p1', 'target': 'p2', 'label' : 'Process'},'classes': 'top'},
 
 
@@ -648,11 +666,11 @@ html.Div(
                 'content': 'data(label)',
                 'text-halign':'center',
                 'text-valign':'center',
-                'font-size': '10px',
-                'width':'58px',
+                'font-size': '9px',
+                'width':'59px',
                 'height':'40px',
                 'shape':'square',
-                'text-max-width' : '70px',
+                'text-max-width' : '50px',
                 'text-wrap':'wrap',
                 'background-color': '#feff9c',
                 'border-width' : '1px',
@@ -715,28 +733,10 @@ html.Div(
                 'style': {
                        'text-margin-y' : '12px'
                 },},
-            {
-                'selector': '.leftSide',
+                  {                      'selector': '.bottomer',
                 'style': {
-                       'text-margin-x' : '-80px'
-                }
-            },            {
-                'selector': '.softRight',
-                'style': {
-                       'text-margin-x' : '60px'
-                }
-            }, {
-                'selector': '.softLeft',
-                'style': {
-                       'text-margin-x' : '-50px'
-                }
-            },
-                        {
-                'selector': '.rightSide',
-                'style': {
-                       'text-margin-x' : '70px'
-                }
-            },
+                       'text-margin-y' : '18px'
+                },},
             {
                 'selector': '.unclick',
                 'style': {
@@ -764,8 +764,16 @@ html.Div(
 
 
     ),
-    textSection('Example interactions', ['The following  gallery shows off just some of the numerous interactions that our interface is capable of handling. Feel free to check them out for yourself here: ']),
-    carousel,
+    textSection('Example interactions', ['The following animations display some of the numerous interactions that our interface is capable of handling. Feel free to check them out for yourself here: ']),
+    #carousel,
+    interactionCard("1. The following interaction shows a user asking what factors are the most important on admittance:", ani1),
+    interactionCard("2. The following interaction shows a user asking about the influence of GPA and TOEFL on admittance:", ani2),
+    interactionCard("3. The following interaction shows a user asking for the top 200 applicants to be selected", ani3),
+    interactionCard("4. The following interaction shows a user asking how the values for CGPA are spread out", ani4),
+    interactionCard("5. The following interaction shows a user comparing tracked selection states:", ani5),
+    interactionCard("6. The following interaction shows a user requesting to see the data as a table:", ani6),
+
+
     #textSection('Example Queries',[exampleQueries()]),
     #textSection('Sources',[sources()]),
 
@@ -1593,4 +1601,3 @@ def update_chart(chat_history,flatIdList, features,chatContext):
 if __name__ == "__main__":
 
     app.run_server(debug=False)
-
