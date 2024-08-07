@@ -1251,7 +1251,6 @@ def display_selected_data(selected_data,chatContext):
 )
 
 def update_chart(chat_history,flatIdList, features,chatContext):
-    #Instead of using df here, we will probably be better of pre-subsetting it
     if(chatContext != None and chatContext != 'null' ):
         chatContext = jsonpickle.decode(chatContext)
     else:
