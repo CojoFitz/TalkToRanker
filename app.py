@@ -30,7 +30,7 @@ loadingIcon = "https://media.tenor.com/On7kvXhzml4AAAAj/loading-gif.gif"
 testImage = "https://placehold.co/600x400/EEE/31343C"
 figureC = 'assets/figureC.png'
 diagramImage = 'assets/DiagramOverview.png'
-figureAb = 'assets/FigureBA.png'
+figureAb = 'assets/abFig.png'
 good = 'assets/good.png'
 error = 'assets/error.png'
 
@@ -132,6 +132,7 @@ test =     html.H5(
             'textAlign': 'center'
         }
     )
+
 
 def interactionCard(text,srcImg):
 
@@ -405,11 +406,12 @@ def boldText(label, text):
 
 def sources():
     return html.Div([
-    html.P("[1] Brown, Tom, et al. \"Language models are few-shot learners.\" Advances in neural information processing systems 33 (2020): 1877-1901."),
-    html.P("[2] Maddigan, Paula, and Teo Susnjak. \"Chat2VIS: generating data visualizations via natural language using ChatGPT, codex and GPT-3 large language models.\" Ieee Access 11 (2023): 45181-45193."),
-    html.P("[3] Yi Liu, Gelei Deng, Zhengzi Xu, Yuekang Li, Yaowen Zheng, Ying Zhang, Lida Zhao, Tianwei Zhang, Kailong Wang, Yang Liu: “Jailbreaking ChatGPT via Prompt Engineering: An Empirical Study”, 2023; arXiv:2305.13860."),
-    html.P("[4] Slack, Dylan, et al. \"Explaining machine learning models with interactive natural language conversations using TalkToModel.\" Nature Machine Intelligence 5.8 (2023): 873-883."),
-    html.P("[5] Nguyen, Van Bach, Jörg Schlötterer, and Christin Seifert. \"From black boxes to conversations: Incorporating xai in a conversational agent.\" World Conference on Explainable Artificial Intelligence. Cham: Springer Nature Switzerland, 2023."),
+    html.P([f"""[1] Brown, Tom, et al. "Language models are few-shot learners." """, html.Cite( "Advances in neural information processing systems"), """ 33 (2020): 1877-1901."""]),
+    html.P([f"""[2] Maddigan, Paula, and Teo Susnjak. "Chat2VIS: generating data visualizations via natural language using ChatGPT, codex and GPT-3 large language models." """, html.Cite('Ieee Access'),""" 11 (2023): 45181-45193."""]),
+    html.P([f"""[3] Liu, Yi, et al. "Jailbreaking chatgpt via prompt engineering: An empirical study." """,html.Cite("arXiv preprint arXiv:2305.13860"),"""(2023)"""]),
+    html.P(["""[4]Slack, Dylan, et al. "Explaining machine learning models with interactive natural language conversations using TalkToModel." """, html.Cite('Nature Machine Intelligence'), """ 5.8 (2023): 873-883."""]),
+    html.P(["""[5]Nguyen, Van Bach, Jörg Schlötterer, and Christin Seifert. "From black boxes to conversations: Incorporating xai in a conversational agent." """, html.Cite('World Conference on Explainable Artificial Intelligence.'), """ Cham: Springer Nature Switzerland, 2023."""]),
+
 ]),
 
 def exampleQueries():
@@ -466,9 +468,7 @@ introHeader = 'Talk To Ranker: conversational interface for ranking-based decisi
 overviewHeader = 'General Overview'
 overviewBody = [
     """ Algorithmic rankers prove to be very useful in a multitude of different areas, as they assist greatly in the processes of making decisions. While those with data literacy may view ranker models as intuitive and easy to analyze, there is undeniably some level of knowledge required for one to obtain the answers to the questions they may have. As such, the average person may find it hard to utilize tools relating to rankings to the fullest extent. Our interface aims to make the process of utilizing rankers more accessible and intuitive. This is accomplished by leveraging, explainable artificial intelligence and visualizations to allow for rankers to be more accessible. Our interface is a hybrid conversational and visualization interface,  which generates visual and textual representations relevant to questions about the dataset. The interface is split into two views, the chat view (a) and visualization view (b). """,
-    html.Img(src=figureAb),
-    """As you can see in the chat view, the user is able to ask questions about a dataset pertaining to university admissions. After the user asks a question two things occur, a textual response is generated in the chat view as well as a visual response in the visualization view. Our interface is split into three major components, each with their own individual modules. They are that of the Explainable AI-Augmented Input, LLM-Augmented analytical module, and the Visualization Generator. Feel free to explore the different parts that make up these three components, with the following interactive diagram: """,
-]
+ ]
 
 parserHeader = 'Parser'
 parserText = [
@@ -492,7 +492,7 @@ quoteBox(exampleFeats),
 """Since our interface expects datasets in a format with a column named ‘y’ for score, there is not always a clear understanding of its meaning. This is addressed by the contextualScore. The contextualScore is found by providing the contextualUse to an LLM, and asking it to generate a good replacement for y based on the contextualUse’ description. This obtained value will replace ‘y’, allowing for axis labels involving ‘y’ to be more informative.""",
 """The final area of prediction is the contextualElement. The contextualElement seeks to describe what is being referenced for each entry of the dataset. For example, if there was a dataset involving patient data, the contextualElement would be expected to identify that each entry or row refers to a patient. This process is done simply by providing an LLM with a list of all of the features in the dataset, and asking it to generate an appropriate element name. Once the element name is generated, it is utilized as a response to queries such as “select the top 100” where the expected response would be “showing the top 100 entries”; in this case it would replace element wioth the contextualElement.""",
 html.B('Sources'),
-f"""[1] Brown, Tom, et al. "Language models are few-shot learners." Advances in neural information processing systems 33 (2020): 1877-1901."""
+html.P([f"""[1] Brown, Tom, et al. "Language models are few-shot learners." """, html.Cite( "Advances in neural information processing systems"), """ 33 (2020): 1877-1901."""])
 
 
 
@@ -522,7 +522,8 @@ textualBody = ["""Our interface uses textual explanations generated with the ass
                 ]),
                 """As evident in the two responses generated above, responses generated with the contextualUse offer much more informative and relevant responses to the dataset as a whole. This also allows for responses to provide more clarification. Most importantly, this serves to make the interface more accessible to differing levels of data-literacy.""",
                 html.B('Sources'),
-f"""[1] Brown, Tom, et al. "Language models are few-shot learners." Advances in neural information processing systems 33 (2020): 1877-1901."""]
+html.P([f"""[1] Brown, Tom, et al. "Language models are few-shot learners." """, html.Cite( "Advances in neural information processing systems"), """ 33 (2020): 1877-1901."""])
+]
 visualHeader = 'Visual Explainer'
 visContextUse = ["""This dataset is likely used to predict or analyze graduate school admissions decisions based on applicants' academic scores, university ranking, statement of purpose, letters of recommendation, GPA, and research experience."""]
 
@@ -544,12 +545,12 @@ visualBody = [f"""Just as textual explanations are important to decision making,
                     html.P("""The contextualUse in this scenario helped to identify a suitable name for the value of y, that is informative and practical for the purposes of the user. """)
                     ]),
                     html.B('Sources'),
-f"""[1] Brown, Tom, et al. "Language models are few-shot learners." Advances in neural information processing systems 33 (2020): 1877-1901."""
+html.P([f"""[1] Brown, Tom, et al. "Language models are few-shot learners." """, html.Cite( "Advances in neural information processing systems"), """ 33 (2020): 1877-1901."""])
             ]
 
-featureAttrBody = ["""Machine learning models, like algorithmic rankers, are often considered black boxes because their internal workings are difficult to interpret. To address this, Explainable AI (XAI) methods provide ways to explain the outcomes of such models. In this work, we utilize SHAP[1], a model-agnostic, post-hoc XAI method, to explain the results of the rankers. Using the official SHAP package [https://github.com/shap/shap], we generate feature attribution explanations for each data item during pre-processing and load this data on the interface. For every data item, feature attribution is represented as a positive or negative score for each feature, reflecting the feature's impact on the model's outcome—in this case, the ranking score. Users can query the feature attributions for a custom group of data items to determine which features are most significant for that group. The backend of the interface calculates the average of the absolute feature attributions for each feature within the group.""",
+featureAttrBody = [html.P(["""Machine learning models, like algorithmic rankers, are often considered black boxes because their internal workings are difficult to interpret. To address this, Explainable AI (XAI) methods provide ways to explain the outcomes of such models. In this work, we utilize SHAP[1], a model-agnostic, post-hoc XAI method, to explain the results of the rankers. Using the """, html.A('official SHAP package', href='https://github.com/shap/shap'), """ we generate feature attribution explanations for each data item during pre-processing and load this data on the interface. For every data item, feature attribution is represented as a positive or negative score for each feature, reflecting the feature's impact on the model's outcome—in this case, the ranking score. Users can query the feature attributions for a custom group of data items to determine which features are most significant for that group. The backend of the interface calculates the average of the absolute feature attributions for each feature within the group."""]),
                    html.B('Sources'),
-                   """[1]Lundberg, Scott M., and Su-In Lee. "A unified approach to interpreting model predictions." Advances in neural information processing systems 30 (2017)"""
+                   html.P(["""[1]Lundberg, Scott M., and Su-In Lee. "A unified approach to interpreting model predictions." """, html.Cite(f"""Advances in neural information processing systems"""), """  30 (2017)"""])
 ]
 
 
@@ -566,6 +567,18 @@ html.Div(
             }),
     #headerSubhead('Talk To Ranker','A conversational interface for ranking-based decision-making'),
     textSection('',introText+overviewBody),
+     dbc.Card(
+        [
+        
+            dbc.CardImg(src=figureAb),
+        ],
+        style={
+                        'margin-bottom': '20px',
+                        'margin-left': '20%',
+                        'margin-right': '20%',
+                    },
+    ),
+    textSection('', ["""As you can see in the chat view, the user is able to ask questions about a dataset pertaining to university admissions. After the user asks a question two things occur, a textual response is generated in the chat view as well as a visual response in the visualization view. Our interface is split into three major components, each with their own individual modules. They are that of the Explainable AI-Augmented Input, LLM-Augmented analytical module, and the Visualization Generator. Feel free to explore the different parts that make up these three components, with the following interactive diagram: """]),
     html.H1(
             "Click on each yellow module to learn more!",
             style={
@@ -595,9 +608,9 @@ html.Div(
 
 
             { 'data': { 'id': "p3", 'label': "Visualization Generator", 'group': "nodes" },'classes': 'unclick grouperNode bottom'},
-            {'data': {'source': 'p3', 'target': 'p2', 'label' : 'Generate'},'classes': 'double top'},
-            {'data': {'source': 'p3', 'target': 'p2', 'label' : 'Adapt Response'},'classes': 'double bottomer'},
-            {'data': {'source': 'p1', 'target': 'p2', 'label' : 'Process'},'classes': 'top'},
+            {'data': {'source': 'p3', 'target': 'p2', 'label' : 'Generate'},'classes': 'double top unclick'},
+            {'data': {'source': 'p3', 'target': 'p2', 'label' : 'Adapt Response'},'classes': 'double bottomer unclick'},
+            {'data': {'source': 'p1', 'target': 'p2', 'label' : 'Process'},'classes': 'top unclick'},
 
 
 
